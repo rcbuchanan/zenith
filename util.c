@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -9,18 +10,42 @@
 #include "util.h"
 
 
+struct GLvarray *
+create_GLvarray(GLsizei s, GLuint n)
+{
+	struct	GLvarray *v;
+
+	if ((v = malloc (sizeof (struct GLvarray))) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	v->buf = create_GLbuffer(s, n);
+	glGenVertexArrays(1, &(v->id));
+
+	return v;
+}
+
+void
+free_GLvarray(struct GLvarray *v)
+{
+	errx(1, "free_GLvarray does not free in openGL!");
+
+	if (v == NULL)		return;
+	if (v->buf != NULL)	free_GLbuffer(v->buf);
+	free(v);
+}
+
 struct GLbuffer *
 create_GLbuffer(GLsizei s, GLuint n)
 {
 	struct	GLbuffer *b;
 
 	if ((b = malloc(sizeof (struct GLbuffer))) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 
 	b->n = n;
 	b->size = s * n;
 	if ((b->d = malloc(b->size)) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 
 	glGenBuffers(1, &(b->id));
 
@@ -30,7 +55,10 @@ create_GLbuffer(GLsizei s, GLuint n)
 void
 free_GLbuffer(struct GLbuffer *b)
 {
-	free(b->d);
+	errx(1, "free_GLbuffer does not free in openGL!");
+
+	if (b == NULL)		return;
+	if (b->d != NULL)	free(b->d);
 	free(b);
 }
 
@@ -40,33 +68,107 @@ create_GLprogram(const char *vsfile, const char *fsfile)
 	struct	GLprogram *p;
 
 	if ((p = malloc(sizeof (struct GLprogram))) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 
 	p->id = glCreateProgram();
-	p->vsid = load_shader(vsfile, GL_VERTEX_SHADER);
-	p->fsid = load_shader(fsfile, GL_FRAGMENT_SHADER);
 
-	if (p->id == 0 || p->vsid == 0 || p->fsid == 0)
-		goto failed;
+	p->vs = create_GLshader(vsfile, GL_VERTEX_SHADER);
+	p->fs = create_GLshader(fsfile, GL_FRAGMENT_SHADER);
 
-	glAttachShader(p->id, p->vsid);
-	glAttachShader(p->id, p->fsid);
+	if (p->id == 0 || p->vs == NULL || p->fs == NULL)
+		errx(1, __FILE__ ": creating shader/program");
+
+	glAttachShader(p->id, p->vs->id);
+	glAttachShader(p->id, p->fs->id);
 	glLinkProgram(p->id);
 	print_program_log(p->id);
 
 	return p;
-
-failed:
-	warnx("%s: couldn't create program", __FILE__);
-	free_GLprogram(p);
-
-	return NULL;
 }
 
 void
 free_GLprogram(struct GLprogram *p)
 {
+	if (p->vs)	free_GLshader(p->vs);
+	if (p->fs)	free_GLshader(p->fs);
+
+	glDeleteProgram(p->id);
 	free(p);
+}
+
+struct GLshader *
+create_GLshader(const char *sfile, GLenum type)
+{
+	struct	GLshader *s;
+
+	if ((s = malloc(sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	s->type = type;
+	if ((s->path = malloc(strlen (sfile) + 1)) == NULL)
+		errx(1, __FILE__ ": malloc");
+	strcpy(s->path, sfile);
+
+	s->id = glCreateShader(type);
+	if (s->id == 0 || s->id == GL_INVALID_ENUM)
+		errx(1, __FILE__ ": createShader");
+
+	if (load_GLshader(s))
+		errx(1, __FILE__ ": failed to compile shader");
+
+	return s;
+}
+
+GLuint
+load_GLshader(struct GLshader *s)
+{
+	GLchar	*buf;
+	FILE	*f;
+	size_t	 len;
+	GLint	 rv;
+
+	if (s == NULL || s->path == NULL || s->id == 0)
+		goto failure;
+
+	if ((f = fopen(s->path, "r")) == NULL)
+		goto failure;
+
+	if (fseek(f, 0, SEEK_END))
+		goto failure;
+	len = ftell(f);
+	if (fseek(f, 0, SEEK_SET))
+		goto failure;
+
+	if ((buf = malloc(len * sizeof (GLchar))) == NULL)
+		goto failure;
+	if (fread(buf, 1, (size_t) len, f) != len)
+		goto failure;
+
+	glShaderSource(s->id, 1, (const GLchar **) &buf, (const GLint *) &len);
+	glCompileShader(s->id);
+	print_shader_log(s->id);
+
+	rv = 0;
+
+	goto cleanup;
+
+failure:
+	warnx(__FILE__ ": trouble linking %s", s->path);
+	rv = -1;
+
+cleanup:
+	if (buf != NULL)	free(buf);
+	if (f != NULL)		fclose(f);
+
+	return rv;
+}
+
+void
+free_GLshader(struct GLshader *s)
+{
+	if (s->path)	free(s->path);
+	glDeleteShader(s->id);
+	free(s);
 }
 
 struct GLunibuf *
@@ -78,7 +180,7 @@ create_GLunibuf(struct GLprogram *p, const char *name)
 	int	 i;
 
 	if ((u = malloc(sizeof (struct GLunibuf))) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 
 	u->id = glGetUniformBlockIndex(p->id, name);
 	if (u->id == GL_INVALID_INDEX)
@@ -141,7 +243,7 @@ create_GLunibuf(struct GLprogram *p, const char *name)
 	return u;
 
 failed:
-	warnx("%s: couldn't create unibuf for %s", __FILE__, name);
+	errx(1, __FILE__ ": couldn't create unibuf for %s", name);
 	free_GLprogram(p);
 
 	return NULL;
@@ -163,7 +265,7 @@ print_program_log(GLuint prog)
 
 	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &len);
 	if ((buf = malloc(sizeof (GLchar) * len + 1 )) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 	buf[len] = '\0';
 
 	glGetProgramInfoLog(prog, len, &len, buf);
@@ -181,7 +283,7 @@ print_shader_log(GLuint shader)
 
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 	if ((buf = malloc(sizeof (GLchar) * len + 1)) == NULL)
-		errx(1, "%s: malloc", __FILE__);
+		errx(1, __FILE__ ": malloc");
 	buf[len] = '\0';
 
 	glGetShaderInfoLog(shader, len, &len, buf);
@@ -189,44 +291,6 @@ print_shader_log(GLuint shader)
 
 /*cleanup:*/
 	free(buf);
-}
-
-GLuint
-load_shader(const char *filename, GLenum type)
-{
-	GLchar	*buf;
-	FILE	*f;
-	size_t	 len;
-	GLuint	 rv = 0;
-
-	if ((f = fopen(filename, "r")) == NULL)
-		goto failed;
-
-	if (fseek(f, 0, SEEK_END))
-		goto failed;
-	len = ftell(f) * sizeof (char);
-	if (fseek(f, 0, SEEK_SET))
-		goto failed;
-
-	if ((buf = malloc(len * sizeof (GLchar))) == NULL)
-		errx(1, "%s: malloc", __FILE__);
-	if (fread(buf, sizeof (char), (size_t) len, f) != len)
-		goto failed;
-
-	rv = glCreateShader(type);
-	glShaderSource(rv, 1, (const GLchar **) &buf, (const GLint *) &len);
-	glCompileShader(rv);
-	print_shader_log(rv);
-
-	goto cleanup;
-
-failed:
-	warnx("%s: failed to load shader %s", __FILE__, filename);
-
-cleanup:
-	free(buf);
-
-	return rv;
 }
 
 size_t
@@ -263,7 +327,7 @@ gl_sizeof(GLenum type)
 	CASE(GL_FLOAT_MAT4x3,		12,	GLfloat);
 	#undef CASE
 	default:
-	errx(1, "%s: Unknown type: 0x%x\n", __FILE__, type);
+	errx(1, __FILE__ ": Unknown type: 0x%x", type);
 	break;
 	}
 

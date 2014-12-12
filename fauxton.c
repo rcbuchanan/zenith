@@ -1,99 +1,66 @@
 #include <err.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
+#include <sys/inotify.h>
 
 #include "util.h"
 
-#include "linmath.h"
+#include "camera.h"
+#include "landscape.h"
 
 
-GLuint	make_program(const char *, const char *);
-void	init(void);
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+#define SB_BUTTONS_COUNT 20
+
+
+void	display();
 void	reshape(int, int);
 void	spaceball_motion(int, int, int);
 void	spaceball_rotate(int, int, int);
-void	display();
-void	populate_vtxbuf(struct GLbuffer *);
+void	glut_setup(int, char **);
+
+void	*reload_shader_thread(void *);
+void	 setup_reload_shader_thread(struct GLshader *);
 
 
 GLuint	winW = 512;
 GLuint	winH = 512;
+int	sb_buttons[SB_BUTTONS_COUNT];
 
 struct	GLprogram *program;
+struct	camera *camera;
+struct	landscape *landscape;
 
-struct	GLvarray *vtx;
+int	reprogram = 0;
 
-GLfloat acx = 0.0;
-GLfloat acy = 0.0;
-GLfloat acz = 0.0;
-GLfloat acrx = 0.0;
-GLfloat acry = 0.0;
-GLfloat acrz = 0.0;
-GLfloat aspect = 1.0;
-
-void
-init()
-{
-	program = create_GLprogram("./s.vert", "./s.frag");
-	if (program == NULL)
-		errx(1, "%s: no program. Bailing.\n", __FILE__);
-	glUseProgram(program->id);
-
-	vtx = malloc(sizeof (struct GLvarray));
-
-	vtx->buf = create_GLbuffer(sizeof (GLfloat), 3000000);
-	if (vtx->buf == NULL)
-		errx(1, "%s: no buffer. Bailing.\n", __FILE__);
-	populate_vtxbuf(vtx->buf);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vtx->buf->id);
-	glBufferData(
-		GL_ARRAY_BUFFER,
-		vtx->buf->size,
-		vtx->buf->d,
-		GL_STATIC_DRAW);
-
-	glGenVertexArrays(1, &(vtx->id));
-	glBindVertexArray(vtx->id);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-}
-
-void
-populate_vtxbuf(struct GLbuffer *b)
-{
-	int	 i;
-	GLfloat	*f = (GLfloat *) b->d;
-	gsl_rng	*r;
-
-	r = gsl_rng_alloc(gsl_rng_taus);
-
-	for (i = 0; i < b->n; i++)
-		f[i] = gsl_ran_gaussian(r, 1);
-
-	gsl_rng_free(r);
-}
 
 void
 display()
 {
-	mat4x4	a, b, c;
-	vec3	eye = {acx, acy, acz}, center = {acx, acy, acz + 1}, up = {0, 1, 0};
+	struct	GLprogram *pp;
 
-	mat4x4_perspective(a, 3.14159 * 2 * 90.0 / 360, aspect, 1.0, 10.0);
-	mat4x4_look_at(b, eye, center, up);
-	mat4x4_mul(c, a, b);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) c);
+	glUseProgram(program->id);
 
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindVertexArray(vtx->id);
-	glDrawArrays(GL_POINTS, 0, vtx->buf->n / 3);
+	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) camera_matrix(camera));
+	landscape_draw(landscape);
+
+	if (reprogram) {
+		pp = create_GLprogram("./s.vert", "./s.frag");
+		free_GLprogram(program);
+		program = pp;
+		reprogram = 0;
+	}
+
 	glFlush();
 	//glutSwapBuffers();
 }
@@ -101,48 +68,48 @@ display()
 void
 reshape(int w, int h)
 {
-	glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT */ );
-
-	winW = w;
-	winH = h;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, w, h);
-	aspect = (w * 1.f) / h;
+
+	winW = w; winH = h;
+	camera_set_projection(camera, (w * 1.f) / h);
 }
 
 void
 spaceball_motion(int x, int y, int z)
 {
 	GLfloat k = 0.0001;
-	acx -= x * k;
-	acy += y * k;
-	acz += z * k;
 
-	printf("r: %04.04f %04.04f %04.04f p: %04.04f %04.04f %04.04f\n", acrx, acry, acrz, acx, acy, acz);
+	if (sb_buttons[7]) return;
+
+	printf("r: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
+	camera_translate(camera, x * k, y * k, z * k);
 }
 
 void
 spaceball_rotate(int rx, int ry, int rz)
 {
 	GLfloat k = 0.001;
-	acrx += rx * k;
-	acry += ry * k;
-	acrz += rz * k;
 
-	printf("r: %04.04f %04.04f %04.04f p: %04.04f %04.04f %04.04f\n", acrx, acry, acrz, acx, acy, acz);
+	if (sb_buttons[6]) return;
+
+	printf("r: %04.04f %04.04f %04.04f\n", rx * k, ry * k, rz * k);
+	camera_rotate(camera, rx * k, ry * k, rz * k);
 }
 
 void
 spaceball_button(int button, int state)
 {
 	printf("%d, %d\n", button, state);
+	sb_buttons[button] = state;
 }
 
 
-int
-main(int argc, char **argv)
+void
+glut_setup(int argc, char **argv)
 {
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA /*| GLUT_DEPTH */ );
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH);
 	glutInitWindowSize(winW, winH);
 	glutInitContextVersion(3, 0);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
@@ -155,8 +122,74 @@ main(int argc, char **argv)
 		printf("Unable to initialize GLEW ...\n");
 		exit(-1);
 	}
+}
 
-	init();
+void *
+reload_shader_thread(void *v)
+{
+	struct	inotify_event ev;
+	char	buf[256];
+	struct	GLshader *s;
+	int	fd;
+	int	n;
+
+	s = (struct GLshader *) v;
+	if ((fd = inotify_init()) == -1)
+		err(1, __FILE__ ": auto reloading shader stuff");
+		
+	if (inotify_add_watch(fd, s->path, IN_MODIFY) == -1)
+		err(1, __FILE__ ": auto reloading shader stuff");
+
+	for(;;) {
+		n = read(fd, &ev, sizeof (struct inotify_event)); 
+		if (n <= 0)	break;
+
+		while (ev.len > 0) {
+			n = read(fd, &buf, MIN(sizeof (buf), ev.len));
+			if (n <= 0)	break;
+			ev.len -= n;
+		}
+		reprogram = 1;		
+	}
+
+	errx(1, ": quiting auto reloading shader");
+	return NULL;
+}
+
+void
+setup_reload_shader_thread(struct GLshader *s)
+{
+	pthread_t	id;
+	pthread_attr_t	attr;
+
+	if (pthread_attr_init(&attr))
+		errx(1, __FILE__ ": no pthread");
+
+	if (pthread_create(&id, &attr, *reload_shader_thread, s))
+		errx(1, __FILE__ ": no pthread");
+}
+
+
+int
+main(int argc, char **argv)
+{
+	glut_setup(argc, argv);
+
+	memset(sb_buttons, 0, sizeof (sb_buttons));
+
+	program = create_GLprogram("./s.vert", "./s.frag");
+	if (program == NULL)
+		errx(1, __FILE__ ": no program.");
+
+	setup_reload_shader_thread(program->fs);
+
+	camera = camera_create();
+	if (camera == NULL)
+		errx(1, __FILE__ ": no camera.\n");
+
+	landscape = landscape_create();
+	if (camera == NULL)
+		errx(1, __FILE__ ": no landscape.\n");
 
 	glutSpaceballMotionFunc(spaceball_motion);
 	glutSpaceballRotateFunc(spaceball_rotate);
@@ -165,7 +198,6 @@ main(int argc, char **argv)
 	glutDisplayFunc(display);
 	glutIdleFunc(display);
 	glutReshapeFunc(reshape);
-
 	glutMainLoop();
 
 	return 0;
