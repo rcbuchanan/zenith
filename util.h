@@ -1,4 +1,3 @@
-
 struct GLbuffer {
 	void	*d;
 	GLuint	 n;
@@ -11,9 +10,15 @@ struct GLvarray {
 	GLuint	id;
 };
 
+struct GLshader {
+	GLuint	 type;
+	GLchar	*path;
+	GLuint	 id;
+};
+
 struct GLprogram {
-	GLuint	vsid;
-	GLuint	fsid;
+	struct	GLshader *vs;
+	struct	GLshader *fs;
 	GLuint	id;
 };
 
@@ -31,9 +36,16 @@ struct GLuni {
 	GLuint	 id;
 };
 
+struct	GLvarray *create_GLvarray(GLsizei, GLuint);
+void	free_GLvarray(struct GLvarray *);
 
-struct	GLbuffer *create_GLbuffer(GLsizei s, GLuint n);
+struct	GLbuffer *create_GLbuffer(GLsizei, GLuint);
 void	free_GLbuffer(struct GLbuffer *);
+
+struct	GLshader *create_GLshader(const char *, GLenum type);
+void	free_GLshader(struct GLshader *);
+GLuint	load_GLshader(struct GLshader *);
+
 
 struct	GLprogram *create_GLprogram(const char *, const char *);
 void	free_GLprogram(struct GLprogram *);
@@ -43,5 +55,4 @@ void	free_GLunibuf(struct GLunibuf *);
 
 void	print_program_log(GLuint);
 void	print_shader_log(GLuint);
-GLuint	load_shader(const char *, GLenum);
 size_t	gl_sizeof(GLenum);
