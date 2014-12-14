@@ -12,7 +12,10 @@
 
 #include "util.h"
 
-#include "camera.h"
+#include "linmath.h"
+#include "matstack.h"
+#include "view.h"
+
 #include "landscape.h"
 
 
@@ -36,10 +39,10 @@ GLuint	winH = 512;
 int	sb_buttons[SB_BUTTONS_COUNT];
 
 struct	GLprogram *program;
-struct	camera *camera;
 struct	landscape *landscape;
 
-int	reprogram = 0;
+pthread_mutex_t	reprogram_mtx;
+int		reprogram = 0;
 
 
 void
@@ -51,14 +54,18 @@ display()
 
 	glUseProgram(program->id);
 
-	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) camera_matrix(camera));
+	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) projection_modelview_collapse());
 	landscape_draw(landscape);
 
-	if (reprogram) {
+	if (reprogram && pthread_mutex_trylock(&reprogram_mtx) == 0) {
+		printf("YAY!\n");
 		pp = create_GLprogram("./s.vert", "./s.frag");
 		free_GLprogram(program);
 		program = pp;
+
 		reprogram = 0;
+		if (pthread_mutex_unlock(&reprogram_mtx))
+			errx(1, __FILE__ ": problem with pthreads");
 	}
 
 	glFlush();
@@ -72,7 +79,7 @@ reshape(int w, int h)
 	glViewport(0, 0, w, h);
 
 	winW = w; winH = h;
-	camera_set_projection(camera, (w * 1.f) / h);
+	projection_set_perspective(90, (w * 1.f) / h, 0, 10);
 }
 
 void
@@ -82,19 +89,19 @@ spaceball_motion(int x, int y, int z)
 
 	if (sb_buttons[7]) return;
 
-	printf("r: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
-	camera_translate(camera, x * k, y * k, z * k);
+	//printf("t: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
+	//modelview_translate(x * k, y * k, z * k);
 }
 
 void
 spaceball_rotate(int rx, int ry, int rz)
 {
-	GLfloat k = 0.001;
+	GLfloat k = 0.01;
 
 	if (sb_buttons[6]) return;
 
-	printf("r: %04.04f %04.04f %04.04f\n", rx * k, ry * k, rz * k);
-	camera_rotate(camera, rx * k, ry * k, rz * k);
+	printf("r: %04.04f %04.04f %04.04f\n", rx * 1.f, ry * 1.f, rz * 1.f);
+	modelview_rotate(rx, ry, rz, k);
 }
 
 void
@@ -135,10 +142,10 @@ reload_shader_thread(void *v)
 
 	s = (struct GLshader *) v;
 	if ((fd = inotify_init()) == -1)
-		err(1, __FILE__ ": auto reloading shader stuff");
+		errx(1, __FILE__ ": auto reloading shader stuff");
 		
 	if (inotify_add_watch(fd, s->path, IN_MODIFY) == -1)
-		err(1, __FILE__ ": auto reloading shader stuff");
+		errx(1, __FILE__ ": auto reloading shader stuff");
 
 	for(;;) {
 		n = read(fd, &ev, sizeof (struct inotify_event)); 
@@ -149,7 +156,16 @@ reload_shader_thread(void *v)
 			if (n <= 0)	break;
 			ev.len -= n;
 		}
-		reprogram = 1;		
+
+		printf("update\n");
+		if (pthread_mutex_lock(&reprogram_mtx))
+			errx(1, __FILE__ ": problem with pthreads");
+		printf("locked\n");
+		reprogram = 1;
+		if (pthread_mutex_unlock(&reprogram_mtx))
+			errx(1, __FILE__ ": problem with pthreads");
+		printf("unlocked\n");
+
 	}
 
 	errx(1, ": quiting auto reloading shader");
@@ -162,6 +178,9 @@ setup_reload_shader_thread(struct GLshader *s)
 	pthread_t	id;
 	pthread_attr_t	attr;
 
+	pthread_mutex_init(&reprogram_mtx, NULL);
+
+
 	if (pthread_attr_init(&attr))
 		errx(1, __FILE__ ": no pthread");
 
@@ -173,6 +192,10 @@ setup_reload_shader_thread(struct GLshader *s)
 int
 main(int argc, char **argv)
 {
+	vec3	eye = {0, 0, -5};
+	vec3	obj = {0, 0, 0};
+	vec3	up = {0, 1, 0};
+
 	glut_setup(argc, argv);
 
 	memset(sb_buttons, 0, sizeof (sb_buttons));
@@ -183,13 +206,12 @@ main(int argc, char **argv)
 
 	setup_reload_shader_thread(program->fs);
 
-	camera = camera_create();
-	if (camera == NULL)
-		errx(1, __FILE__ ": no camera.\n");
+	projection_pushident();
+	modelview_pushident();
+	modelview_lookat(eye, obj, up);
+	modelview_pushident();
 
 	landscape = landscape_create();
-	if (camera == NULL)
-		errx(1, __FILE__ ": no landscape.\n");
 
 	glutSpaceballMotionFunc(spaceball_motion);
 	glutSpaceballRotateFunc(spaceball_rotate);
