@@ -24,7 +24,7 @@ struct landscape {
 };
 
 
-GLfloat points [12][3] = {
+GLfloat ico_points [12][3] = {
 	{ 0.00000000,  0.00000000, -0.95105650},
 	{ 0.00000000,  0.85065080, -0.42532537},
 	{ 0.80901698,  0.26286556, -0.42532537},
@@ -39,7 +39,7 @@ GLfloat points [12][3] = {
 	{ 0.00000000,  0.00000000,  0.95105650}
 };
 
-GLuint faces[20][3] = {
+GLuint ico_faces[20][3] = {
 	{0,  2,  1},
 	{0,  3,  2},
 	{0,  4,  3},
@@ -63,8 +63,8 @@ GLuint faces[20][3] = {
 };
 
 
-static	void generate_points(struct landscape *);
-static	void generate_triangles(struct landscape *);
+static	void generate_points(struct landscape *, GLfloat *, int, int);
+static	void generate_triangles(struct landscape *, GLuint *, int, int);
 
 
 struct landscape *
@@ -75,11 +75,8 @@ landscape_create()
 	if ((l = malloc(sizeof (struct landscape))) == NULL)
 		errx(1, __FILE__ ": allocation failed");
 
-	l->vtx = create_GLvarray(sizeof (GLfloat), 3 * sizeof (points) / sizeof (points[0]));
-	l->tri = create_GLbuffer(sizeof (GLuint), 3 * sizeof (faces) / sizeof (faces[0]));
-
-	generate_points(l);
-	generate_triangles(l);
+	generate_points(l, (GLfloat *) ico_points, 12, 2);
+	generate_triangles(l, (GLuint *) ico_faces, 20, 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
@@ -109,7 +106,7 @@ landscape_draw(struct landscape *l)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
 
 	//glFrontFace(GL_CCW);
-	//glCullFace(GL_BACK);
+	glCullFace(GL_BACK);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glDrawElements(GL_TRIANGLES, l->tri->n * 3 / 4 + 3 * 5, GL_UNSIGNED_INT, 0);
@@ -118,34 +115,38 @@ landscape_draw(struct landscape *l)
 
 
 static void
-generate_points(struct landscape *l)
+generate_points(struct landscape *l, GLfloat *ps, int nps, int subdivs)
 {
 	GLfloat	*f;
 	GLuint	 i;
 
+	l->vtx = create_GLvarray(sizeof (GLfloat), 3 * nps);
 	f = (GLfloat *) l->vtx->buf->d;
 
 	for (i = 0; i < l->vtx->buf->n / 3; i++) {
-		f[i * 3 + 0] = points[i][0];
-		f[i * 3 + 1] = points[i][1];
-		f[i * 3 + 2] = points[i][2] + 1;
+		f[i * 3 + 0] = ico_points[i][0];
+		f[i * 3 + 1] = ico_points[i][1];
+		f[i * 3 + 2] = ico_points[i][2];
 		//f[i * 3 + 2] = 1;
 		printf("%f %f %f\n", f[i * 3 + 0], f[i * 3 + 1], f[i * 3 + 2]);
 	}
 }
 
-void
-generate_triangles(struct landscape *l)
+static void
+generate_triangles(struct landscape *l, GLuint *fs, int nfs, int subdivs)
 {
 	GLuint	*u;
 	GLuint	 i;
 
+	l->tri = create_GLbuffer(sizeof (GLuint), 3 * nfs);
+
 	u = (GLuint *) l->tri->d;
 
 	for (i = 0; i < l->tri->n / 3; i++) {
-		u[i * 3 + 0] = faces[i][0];
-		u[i * 3 + 1] = faces[i][1];
-		u[i * 3 + 2] = faces[i][2];
+		u[i * 3 + 0] = ico_faces[i][0];
+		u[i * 3 + 1] = ico_faces[i][1];
+		u[i * 3 + 2] = ico_faces[i][2];
+		printf("%d %d %d\n", u[i * 3 + 0], u[i * 3 + 1], u[i * 3 + 2]);
 	}
 
 }
