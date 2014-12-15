@@ -9,8 +9,10 @@
 
 #include "linmath.h"
 
-#include "matstack.h"
 #include "util.h"
+
+#include "filewatcher.h"
+#include "matstack.h"
 #include "view.h"
 
 
@@ -27,8 +29,15 @@ struct landscape {
 	struct	GLbuffer *tri;
 };
 
+struct polyhedron {
+	GLfloat	*p;
+	int	 ps;
+	GLuint	*f;
+	int	 fs;
+};
 
-GLfloat ico_points [12][3] = {
+
+static	GLfloat ico_points [12][3] = {
 	{ 0.00000000,  0.00000000, -0.95105650},
 	{ 0.00000000,  0.85065080, -0.42532537},
 	{ 0.80901698,  0.26286556, -0.42532537},
@@ -43,7 +52,7 @@ GLfloat ico_points [12][3] = {
 	{ 0.00000000,  0.00000000,  0.95105650}
 };
 
-GLuint ico_faces[20][3] = {
+static	GLuint ico_faces[20][3] = {
 	{0,  2,  1},
 	{0,  3,  2},
 	{0,  4,  3},
@@ -66,12 +75,17 @@ GLuint ico_faces[20][3] = {
 	{9, 10, 11}
 };
 
+static	struct polyhedron = {
+	.p	= (GLfloat *) ico_points,
+	.ps	= 12
+	
+
 static	struct GLprogram *line_prog;
 static	struct GLprogram *shade_prog;
+static	struct watched_program *watched;
 
 
-static	void generate_points(struct landscape *, GLfloat *, int, int);
-static	void generate_triangles(struct landscape *, GLuint *, int, int);
+static	void subdivide_polyhedron(const GLfloat *, int, const GLuint *);
 static	void create_programs();
 
 
@@ -96,6 +110,9 @@ create_programs()
 	addshader_GLprogram(shade_prog, shade);
 	link_GLprogram(shade_prog);
 
+	watched = create_watched_program(shade_prog);
+	if (watched == NULL)
+		errx(1, __FILE__ ": problem watching file");
 }
 
 struct landscape *
@@ -109,8 +126,7 @@ landscape_create()
 	if ((l = malloc(sizeof (struct landscape))) == NULL)
 		errx(1, __FILE__ ": allocation failed");
 
-	generate_points(l, (GLfloat *) ico_points, 12, 2);
-	generate_triangles(l, (GLuint *) ico_faces, 20, 2);
+	subdivide_polyhedron(l, (GLfloat *) ico_points, 12, 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
@@ -136,6 +152,8 @@ landscape_create()
 void
 landscape_draw(struct landscape *l)
 {
+	update_program(watched);
+
 	glBindVertexArray(l->vtx->id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
 	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
@@ -178,41 +196,16 @@ landscape_draw(struct landscape *l)
 
 
 static void
-generate_points(struct landscape *l, GLfloat *ps, int nps, int subdivs)
+subdivide_polyhedron(struct landscape *l, GLfloat *ps, int nps, GLuint *fs, int nfs)
 {
 	GLfloat	*f;
 	GLuint	 i;
+	GLuint	*u;
 
 	l->vtx = create_GLvarray(sizeof (GLfloat), 3 * 2 * nps);
-	f = (GLfloat *) l->vtx->buf->d;
-
-	for (i = 0; i < l->vtx->buf->n / (3 * 2); i++) {
-		f[i * 3 * 2 + 0] = ico_points[i][0];
-		f[i * 3 * 2 + 1] = ico_points[i][1];
-		f[i * 3 * 2 + 2] = ico_points[i][2];
-		f[i * 3 * 2 + 3] = ico_points[i][0];
-		f[i * 3 * 2 + 4] = ico_points[i][1];
-		f[i * 3 * 2 + 5] = ico_points[i][2];
-	}
-	for (i = 0; i < l->vtx->buf->n / (3 * 2); i++)
-		printf("%f %f %f %f %f %f\n", 
-			f[i * 6 + 0],
-			f[i * 6 + 1],
-			f[i * 6 + 2],
-			f[i * 6 + 3],
-			f[i * 6 + 4],
-			f[i * 6 + 5]
-		);
-}
-
-static void
-generate_triangles(struct landscape *l, GLuint *fs, int nfs, int subdivs)
-{
-	GLuint	*u;
-	GLuint	 i;
-
 	l->tri = create_GLbuffer(sizeof (GLuint), 3 * nfs);
 
+	f = (GLfloat *) l->vtx->buf->d;
 	u = (GLuint *) l->tri->d;
 
 	for (i = 0; i < l->tri->n / 3; i++) {
@@ -222,4 +215,20 @@ generate_triangles(struct landscape *l, GLuint *fs, int nfs, int subdivs)
 		printf("%d %d %d\n", u[i * 3 + 0], u[i * 3 + 1], u[i * 3 + 2]);
 	}
 
+	for (i = 0; i < l->vtx->buf->n / (3 * 2); i++) {
+		f[i * 3 * 2 + 0] = ico_points[i][0];
+		f[i * 3 * 2 + 1] = ico_points[i][1];
+		f[i * 3 * 2 + 2] = ico_points[i][2];
+		f[i * 3 * 2 + 3] = ico_points[i][0];
+		f[i * 3 * 2 + 4] = ico_points[i][1];
+		f[i * 3 * 2 + 5] = ico_points[i][2];
+
+		printf("%f %f %f %f %f %f\n", 
+			f[i * 6 + 0],
+			f[i * 6 + 1],
+			f[i * 6 + 2],
+			f[i * 6 + 3],
+			f[i * 6 + 4],
+			f[i * 6 + 5]
+	}
 }
