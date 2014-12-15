@@ -10,6 +10,9 @@
 #include "util.h"
 
 
+#define MAX_SHADERS	10
+
+
 struct GLvarray *
 create_GLvarray(GLsizei s, GLuint n)
 {
@@ -63,35 +66,47 @@ free_GLbuffer(struct GLbuffer *b)
 }
 
 struct GLprogram *
-create_GLprogram(const char *vsfile, const char *fsfile)
+create_GLprogram()
 {
 	struct	GLprogram *p;
 
 	if ((p = malloc(sizeof (struct GLprogram))) == NULL)
 		errx(1, __FILE__ ": malloc");
 
+	if ((p->ss = malloc(sizeof (struct GLshader *) * MAX_SHADERS)) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	p->nss = 0;
+
 	p->id = glCreateProgram();
-
-	p->vs = create_GLshader(vsfile, GL_VERTEX_SHADER);
-	p->fs = create_GLshader(fsfile, GL_FRAGMENT_SHADER);
-
-	if (p->id == 0 || p->vs == NULL || p->fs == NULL)
-		errx(1, __FILE__ ": creating shader/program");
-
-	glAttachShader(p->id, p->vs->id);
-	glAttachShader(p->id, p->fs->id);
-	glLinkProgram(p->id);
-	print_program_log(p->id);
 
 	return p;
 }
 
 void
+addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
+{
+	if (p->nss >= MAX_SHADERS)
+		errx(1, __FILE__ ": too many shaders attached!");
+	p->ss[p->nss++] = s;
+}
+
+
+void
+link_GLprogram(struct GLprogram *p)
+{
+	int	i;
+
+	for (i = 0; i < p->nss; i++)	glAttachShader(p->id, p->ss[i]->id);
+	glLinkProgram(p->id);
+	for (i = 0; i < p->nss; i++)	glDetachShader(p->id, p->ss[i]->id);
+
+	print_program_log(p->id);
+}
+
+void
 free_GLprogram(struct GLprogram *p)
 {
-	if (p->vs)	free_GLshader(p->vs);
-	if (p->fs)	free_GLshader(p->fs);
-
 	glDeleteProgram(p->id);
 	free(p);
 }
@@ -153,7 +168,7 @@ load_GLshader(struct GLshader *s)
 	goto cleanup;
 
 failure:
-	warnx(__FILE__ ": trouble linking %s", s->path);
+	warnx(__FILE__ ": trouble loading %s", s->path);
 	rv = -1;
 
 cleanup:
