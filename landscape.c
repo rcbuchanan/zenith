@@ -7,7 +7,11 @@
 
 #include <GL/glew.h>
 
+#include "linmath.h"
+
+#include "matstack.h"
 #include "util.h"
+#include "view.h"
 
 
 #define ABS(x) (((x) > 0) ? (x) : (-(x)))
@@ -62,15 +66,45 @@ GLuint ico_faces[20][3] = {
 	{9, 10, 11}
 };
 
+static	struct GLprogram *line_prog;
+static	struct GLprogram *shade_prog;
+
 
 static	void generate_points(struct landscape *, GLfloat *, int, int);
 static	void generate_triangles(struct landscape *, GLuint *, int, int);
+static	void create_programs();
 
+
+void
+create_programs()
+{
+	struct	GLshader *vtx;
+	struct	GLshader *line;
+	struct	GLshader *shade;
+
+	vtx = create_GLshader("./s.vert", GL_VERTEX_SHADER);
+	line = create_GLshader("./line.frag", GL_FRAGMENT_SHADER);
+	shade = create_GLshader("./shade.frag", GL_FRAGMENT_SHADER);
+
+	line_prog = create_GLprogram();
+	addshader_GLprogram(line_prog, vtx);
+	addshader_GLprogram(line_prog, line);
+	link_GLprogram(line_prog);
+
+	shade_prog = create_GLprogram();
+	addshader_GLprogram(shade_prog, vtx);
+	addshader_GLprogram(shade_prog, shade);
+	link_GLprogram(shade_prog);
+
+}
 
 struct landscape *
 landscape_create()
 {
 	struct	landscape *l;
+
+	if (line_prog == NULL || shade_prog == NULL)
+		create_programs();
 
 	if ((l = malloc(sizeof (struct landscape))) == NULL)
 		errx(1, __FILE__ ": allocation failed");
@@ -104,13 +138,42 @@ landscape_draw(struct landscape *l)
 {
 	glBindVertexArray(l->vtx->id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
+	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * 2 * sizeof (GLfloat), 0);
+	glEnableVertexAttribArray(0); 
+	glVertexAttribPointer(
+		1,
+		3,
+		GL_FLOAT,
+		GL_FALSE,
+		3 * 2 * sizeof (GLfloat),
+		(void *) (sizeof (GLfloat) * 3));
+	glEnableVertexAttribArray(1);
+
 
 	//glFrontFace(GL_CCW);
-	glCullFace(GL_BACK);
+	//glCullFace(GL_BACK);
+
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	glUseProgram(line_prog->id);
+	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) projection_modelview_collapse());
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDrawElements(GL_TRIANGLES, l->tri->n * 3 / 4 + 3 * 5, GL_UNSIGNED_INT, 0);
+
+	glUseProgram(shade_prog->id);
+	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) projection_modelview_collapse());
+
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glPolygonOffset(1.0, 1.0);
 
 	glDrawElements(GL_TRIANGLES, l->tri->n * 3 / 4 + 3 * 5, GL_UNSIGNED_INT, 0);
-	//glDrawArrays(GL_POINTS, 0, l->vtx->buf->n);
+	glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 
@@ -120,16 +183,26 @@ generate_points(struct landscape *l, GLfloat *ps, int nps, int subdivs)
 	GLfloat	*f;
 	GLuint	 i;
 
-	l->vtx = create_GLvarray(sizeof (GLfloat), 3 * nps);
+	l->vtx = create_GLvarray(sizeof (GLfloat), 3 * 2 * nps);
 	f = (GLfloat *) l->vtx->buf->d;
 
-	for (i = 0; i < l->vtx->buf->n / 3; i++) {
-		f[i * 3 + 0] = ico_points[i][0];
-		f[i * 3 + 1] = ico_points[i][1];
-		f[i * 3 + 2] = ico_points[i][2];
-		//f[i * 3 + 2] = 1;
-		printf("%f %f %f\n", f[i * 3 + 0], f[i * 3 + 1], f[i * 3 + 2]);
+	for (i = 0; i < l->vtx->buf->n / (3 * 2); i++) {
+		f[i * 3 * 2 + 0] = ico_points[i][0];
+		f[i * 3 * 2 + 1] = ico_points[i][1];
+		f[i * 3 * 2 + 2] = ico_points[i][2];
+		f[i * 3 * 2 + 3] = ico_points[i][0];
+		f[i * 3 * 2 + 4] = ico_points[i][1];
+		f[i * 3 * 2 + 5] = ico_points[i][2];
 	}
+	for (i = 0; i < l->vtx->buf->n / (3 * 2); i++)
+		printf("%f %f %f %f %f %f\n", 
+			f[i * 6 + 0],
+			f[i * 6 + 1],
+			f[i * 6 + 2],
+			f[i * 6 + 3],
+			f[i * 6 + 4],
+			f[i * 6 + 5]
+		);
 }
 
 static void

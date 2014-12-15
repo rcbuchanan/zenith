@@ -17,8 +17,8 @@ struct GLshader {
 };
 
 struct GLprogram {
-	struct	GLshader *vs;
-	struct	GLshader *fs;
+	struct	GLshader **ss;
+	int	nss;
 	GLuint	id;
 };
 
@@ -46,9 +46,10 @@ struct	GLshader *create_GLshader(const char *, GLenum type);
 void	free_GLshader(struct GLshader *);
 GLuint	load_GLshader(struct GLshader *);
 
-
-struct	GLprogram *create_GLprogram(const char *, const char *);
+struct	GLprogram *create_GLprogram();
 void	free_GLprogram(struct GLprogram *);
+void	addshader_GLprogram(struct GLprogram *, struct GLshader *);
+void	link_GLprogram(struct GLprogram *);
 
 struct	GLunibuf *create_GLunibuf(struct GLprogram *, const char *);
 void	free_GLunibuf(struct GLunibuf *);
