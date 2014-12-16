@@ -17,4 +17,5 @@ void main()
 	col = log(floor(exp(col) * 10)) - log(10);
 
 	gl_FragColor = vec4(col, 1);
+	gl_FragColor = vec4(0, 1, 0, 1);
 }

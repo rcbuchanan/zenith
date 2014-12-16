@@ -21,12 +21,14 @@
 
 
 struct hyperedge {
-	GLfloat	p[3];
+	GLuint	p0;
+	GLuint	p1;
+	int	index;
 };
 
 struct hypernode {
 	GLuint	(*f)[3];
-	struct	 hyperedge *he[3];
+	struct	 hyperedge *e[3];
 };
 
 struct landscape {
@@ -41,6 +43,18 @@ struct polyhedron {
 	int	 nf;
 };
 
+
+static	int match[9][4] = {
+	{0, 1, 0, 2},
+	{1, 2, 0, 2},
+	{2, 0, 0, 2},
+	{0, 1, 1, 0},
+	{1, 2, 1, 0},
+	{2, 0, 1, 0},
+	{0, 1, 2, 1},
+	{1, 2, 2, 1},
+	{2, 0, 2, 1}
+};
 
 static	GLfloat ico_points [12][3] = {
 	{ 0.00000000,  0.00000000, -0.95105650},
@@ -128,7 +142,7 @@ struct landscape *
 landscape_create()
 {
 	struct	landscape *l;
-	struct	polyhedron *p;
+	struct	polyhedron *p, *pp;
 	int	 i;
 	GLfloat	(*fp)[6];
 	GLuint	(*up)[3];
@@ -141,6 +155,12 @@ landscape_create()
 
 	if ((p = polyhedron_createsubdivided(&ico_polyhedron)) == NULL)
 		errx(1, __FILE__ ": failed to create polyhedron");
+	if ((pp = polyhedron_createsubdivided(p)) == NULL)
+		errx(1, __FILE__ ": failed to create polyhedron");
+	free(p);
+	if ((p = polyhedron_createsubdivided(pp)) == NULL)
+		errx(1, __FILE__ ": failed to create polyhedron");
+	free(pp);
 
 	l->vtx = create_GLvarray(sizeof (GLfloat), 6 * p->np);
 	for (fp = l->vtx->buf->d, i = 0; i < p->np; i++) {
@@ -183,6 +203,9 @@ landscape_create()
 void
 landscape_draw(struct landscape *l)
 {
+
+	static	GLfloat t = 0.0;
+
 	update_program(shwatch);
 
 	glBindVertexArray(l->vtx->id);
@@ -200,7 +223,7 @@ landscape_draw(struct landscape *l)
 		(void *) (sizeof (GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
-	//glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	//glFrontFace(GL_CCW);
 	glCullFace(GL_FRONT);
 
@@ -209,22 +232,26 @@ landscape_draw(struct landscape *l)
 
 	glUseProgram(line_prog->id);
 	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) projection_modelview_collapse());
+	glUniform1f(1, t);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glLineWidth(3);
-	glDrawElements(GL_TRIANGLES, l->tri->n * 3 / 4 + 3 * 5, GL_UNSIGNED_INT, 0);
+	glLineWidth(2);
+	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
 
 	glCullFace(GL_BACK);
 
 	glUseProgram(shade_prog->id);
 	glUniformMatrix4fv(0, 1, GL_TRUE, (float *) projection_modelview_collapse());
+	glUniform1f(1, t);
 
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glPolygonOffset(1.0, 1.0);
 
-	glDrawElements(GL_TRIANGLES, l->tri->n * 3 / 4 + 3 * 5, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
 	glDisable(GL_POLYGON_OFFSET_FILL);
+
+	t += 0.1;
 }
 
 static void
@@ -232,9 +259,23 @@ update_adj(struct hypernode *hna, struct hypernode *hnb, struct hyperedge **hep)
 {
 	GLuint	*fa;
 	GLuint	*fb;
+	int	 i;
 
-	fa = *hna.f;
-	fb = *hnb.f;
+	fa = *hna->f;
+	fb = *hnb->f;
+
+	for (i = 0; i < 9; i++) {
+		if (fa[match[i][0]] != fb[match[i][2]])	continue;
+		if (fa[match[i][1]] != fb[match[i][3]])	continue;
+
+		(*hep)->p0 = fa[match[i][0]];
+		(*hep)->p1 = fa[match[i][1]];
+
+		hna->e[match[i][0]] = *hep;
+		hnb->e[match[i][3]] = *hep;
+
+		(*hep)++;
+	}
 }
 
 static struct polyhedron *
@@ -265,7 +306,6 @@ polyhedron_createsubdivided(struct polyhedron *in)
 		hn[i].f = in->f + i;
 
 	// edges
-	memset(he, 0, sizeof (he[0]) * nhe);
 	for (hep = he, i = 0; i < nhn; i++)
 		for (j = i + 1; j < nhn; j++)
 			update_adj(hn + i, hn + j, &hep);
@@ -283,13 +323,36 @@ polyhedron_createsubdivided(struct polyhedron *in)
 	// copy original points verbatim
 	memcpy(out->p, in->p, sizeof (in->p[0]) * in->np);
 
-	// copy subdivided points
-	for (i = 0; i < nhe; i++)
-		memcpy(out->p[nhn + i], he[i].p, sizeof (he[0].p));
+	// create subdivided points
+	for (i = 0; i < nhe; i++) {
+		he[i].index = nhn + i;
+
+		out->p[nhn + i][0]  =
+			0.5 * out->p[he[i].p0][0] + 0.5 * out->p[he[i].p1][0];
+		out->p[nhn + i][1] =
+			0.5 * out->p[he[i].p0][1] + 0.5 * out->p[he[i].p1][1];
+		out->p[nhn + i][2] =
+			0.5 * out->p[he[i].p0][2] + 0.5 * out->p[he[i].p1][2];
+	}
 
 	// create new faces
-	for (i = 0; i < out->nf; i++)
-		memset(out->f[i], 0, sizeof (out->f[0]));
+	for (i = 0; i < nhn; i++) {
+		out->f[4 * i + 0][0] = (*hn[i].f)[0];
+		out->f[4 * i + 0][1] = hn[i].e[0]->index;
+		out->f[4 * i + 0][2] = hn[i].e[2]->index;
+
+		out->f[4 * i + 1][0] = hn[i].e[0]->index;
+		out->f[4 * i + 1][1] = hn[i].e[1]->index;
+		out->f[4 * i + 1][2] = hn[i].e[2]->index;
+
+		out->f[4 * i + 2][0] = (*hn[i].f)[1];
+		out->f[4 * i + 2][1] = hn[i].e[1]->index;
+		out->f[4 * i + 2][2] = hn[i].e[0]->index;
+
+		out->f[4 * i + 3][0] = (*hn[i].f)[2];
+		out->f[4 * i + 3][1] = hn[i].e[2]->index;
+		out->f[4 * i + 3][2] = hn[i].e[1]->index;
+	}
 
 	free (he);
 	free (hn);
