@@ -64,10 +64,10 @@ reshape(int w, int h)
 void
 spaceball_motion(int x, int y, int z)
 {
-	//GLfloat k = 0.0001;
+	GLfloat k = 0.0001;
 
 	//printf("t: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
-	//modelview_translate(x * k, y * k, z * k);
+	modelview_translate(x * k, y * k, z * k);
 }
 
 void

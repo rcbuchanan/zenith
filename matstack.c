@@ -24,8 +24,15 @@ static	mat4x4 mvcache[MAX_SIZE];
 static	mat4x4 procache[MAX_SIZE];
 static	mat4x4 collapsedmat;
 
-static	struct matstack mvstack = {mvdata, mvcache, -1};
-static	struct matstack prostack = {prodata, procache, -1};
+static	struct matstack mvstack = {
+	.d	= mvdata,
+	.cache	= mvcache,
+	.i	= -1
+};
+static	struct matstack prostack = {
+	.d	= prodata,
+	.cache	= procache,
+	.i	= -1};
 
 
 static	void matstack_update_cache(struct matstack *);
