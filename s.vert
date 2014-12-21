@@ -12,6 +12,7 @@ uniform float t;
 float map(in vec3 p)
 {
 	return 1 + sin(length(pos) * t * 0.1) * 0.1;
+	//return 1 + sin(length(pos) * 200) * 0.1;
 }
 
 vec3 map_norm(in vec3 p)
