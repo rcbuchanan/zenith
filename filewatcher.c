@@ -16,18 +16,17 @@
 
 
 struct watched_program {
-	struct		GLprogram *p;
-	int		needs_update;
-	pthread_mutex_t	m;
+	struct GLprogram *p;
+	int needs_update;
+	pthread_mutex_t m;
 };
 
-static	void *watched_program_thread(void *);
+static void *watched_program_thread(void *);
 
 
-void
-update_program(struct watched_program *w)
+void update_program(struct watched_program *w)
 {
-	int	i;
+	int i;
 	if (w->needs_update && !pthread_mutex_trylock(&w->m)) {
 		for (i = 0; i < w->p->nss; i++)
 			load_GLshader(w->p->ss[i]);
@@ -39,31 +38,33 @@ update_program(struct watched_program *w)
 	}
 }
 
-static void *
-watched_program_thread(void *v)
+static void *watched_program_thread(void *v)
 {
-	struct	inotify_event ev;
-	char	buf[256];
-	struct	watched_program *w;
-	int	fd;
-	int	n;
-	int	i;
+	struct inotify_event ev;
+	char buf[256];
+	struct watched_program *w;
+	int fd;
+	int n;
+	int i;
 
 	w = (struct watched_program *) v;
 	if ((fd = inotify_init()) == -1)
 		errx(1, __FILE__ ": auto reloading shader stuff");
-	
+
 	for (i = 0; i < w->p->nss; i++)
-		if (inotify_add_watch(fd, w->p->ss[i]->path, IN_MODIFY) == -1)
+		if (inotify_add_watch(fd, w->p->ss[i]->path, IN_MODIFY) ==
+		    -1)
 			errx(1, __FILE__ ": auto reloading shader stuff");
 
-	for(;;) {
-		n = read(fd, &ev, sizeof (struct inotify_event)); 
-		if (n <= 0)	break;
+	for (;;) {
+		n = read(fd, &ev, sizeof(struct inotify_event));
+		if (n <= 0)
+			break;
 
 		while (ev.len > 0) {
-			n = read(fd, &buf, MIN(sizeof (buf), ev.len));
-			if (n <= 0)	break;
+			n = read(fd, &buf, MIN(sizeof(buf), ev.len));
+			if (n <= 0)
+				break;
 			ev.len -= n;
 		}
 
@@ -82,14 +83,13 @@ watched_program_thread(void *v)
 	return NULL;
 }
 
-struct watched_program *
-create_watched_program(struct GLprogram *p)
+struct watched_program *create_watched_program(struct GLprogram *p)
 {
-	struct		watched_program *w;
-	pthread_t	id;
-	pthread_attr_t	attr;
+	struct watched_program *w;
+	pthread_t id;
+	pthread_attr_t attr;
 
-	if ((w = malloc(sizeof (struct watched_program))) == 0)
+	if ((w = malloc(sizeof(struct watched_program))) == 0)
 		errx(1, __FILE__ ": malloc");
 	w->p = p;
 	pthread_mutex_init(&w->m, NULL);
@@ -103,8 +103,8 @@ create_watched_program(struct GLprogram *p)
 	return w;
 }
 
-void
-free_watched_program(struct watched_program *w)
+void free_watched_program(struct watched_program *w)
 {
-	if (w != NULL)	free(w);
+	if (w != NULL)
+		free(w);
 }
