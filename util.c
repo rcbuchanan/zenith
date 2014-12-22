@@ -13,7 +13,8 @@
 #define MAX_SHADERS	10
 
 
-struct GLvarray *create_GLvarray(GLsizei s, GLuint n)
+struct GLvarray *
+create_GLvarray(GLsizei s, GLuint n)
 {
 	struct GLvarray *v;
 
@@ -26,7 +27,8 @@ struct GLvarray *create_GLvarray(GLsizei s, GLuint n)
 	return v;
 }
 
-void free_GLvarray(struct GLvarray *v)
+void
+free_GLvarray(struct GLvarray *v)
 {
 	errx(1, "free_GLvarray does not free in openGL!");
 
@@ -37,7 +39,8 @@ void free_GLvarray(struct GLvarray *v)
 	free(v);
 }
 
-struct GLbuffer *create_GLbuffer(GLsizei s, GLuint n)
+struct GLbuffer *
+create_GLbuffer(GLsizei s, GLuint n)
 {
 	struct GLbuffer *b;
 
@@ -54,7 +57,8 @@ struct GLbuffer *create_GLbuffer(GLsizei s, GLuint n)
 	return b;
 }
 
-void free_GLbuffer(struct GLbuffer *b)
+void
+free_GLbuffer(struct GLbuffer *b)
 {
 	errx(1, "free_GLbuffer does not free in openGL!");
 
@@ -65,7 +69,8 @@ void free_GLbuffer(struct GLbuffer *b)
 	free(b);
 }
 
-struct GLprogram *create_GLprogram()
+struct GLprogram *
+create_GLprogram()
 {
 	struct GLprogram *p;
 
@@ -83,7 +88,8 @@ struct GLprogram *create_GLprogram()
 	return p;
 }
 
-void addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
+void
+addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
 {
 	if (p->nss >= MAX_SHADERS)
 		errx(1, __FILE__ ": too many shaders attached!");
@@ -91,7 +97,8 @@ void addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
 }
 
 
-void link_GLprogram(struct GLprogram *p)
+void
+link_GLprogram(struct GLprogram *p)
 {
 	int i;
 
@@ -104,13 +111,15 @@ void link_GLprogram(struct GLprogram *p)
 	print_program_log(p->id);
 }
 
-void free_GLprogram(struct GLprogram *p)
+void
+free_GLprogram(struct GLprogram *p)
 {
 	glDeleteProgram(p->id);
 	free(p);
 }
 
-struct GLshader *create_GLshader(const char *sfile, GLenum type)
+struct GLshader *
+create_GLshader(const char *sfile, GLenum type)
 {
 	struct GLshader *s;
 
@@ -132,7 +141,8 @@ struct GLshader *create_GLshader(const char *sfile, GLenum type)
 	return s;
 }
 
-GLuint load_GLshader(struct GLshader * s)
+GLuint
+load_GLshader(struct GLshader * s)
 {
 	GLchar *buf;
 	FILE *f;
@@ -178,7 +188,8 @@ GLuint load_GLshader(struct GLshader * s)
 	return rv;
 }
 
-void free_GLshader(struct GLshader *s)
+void
+free_GLshader(struct GLshader *s)
 {
 	if (s->path)
 		free(s->path);
@@ -186,7 +197,8 @@ void free_GLshader(struct GLshader *s)
 	free(s);
 }
 
-struct GLunibuf *create_GLunibuf(struct GLprogram *p, const char *name)
+struct GLunibuf *
+create_GLunibuf(struct GLprogram *p, const char *name)
 {
 	struct GLunibuf *u = NULL;
 	GLsizei bs;
@@ -256,14 +268,16 @@ struct GLunibuf *create_GLunibuf(struct GLprogram *p, const char *name)
 	return NULL;
 }
 
-void free_GLunibuf(struct GLunibuf *u)
+void
+free_GLunibuf(struct GLunibuf *u)
 {
 	free_GLbuffer(u->buf);
 	free(u->unis);
 	free(u);
 }
 
-void print_program_log(GLuint prog)
+void
+print_program_log(GLuint prog)
 {
 	GLsizei len = 0;
 	GLchar *buf;
@@ -280,7 +294,8 @@ void print_program_log(GLuint prog)
 	free(buf);
 }
 
-void print_shader_log(GLuint shader)
+void
+print_shader_log(GLuint shader)
 {
 	GLsizei len = 0;
 	GLchar *buf;
@@ -297,7 +312,8 @@ void print_shader_log(GLuint shader)
 	free(buf);
 }
 
-size_t gl_sizeof(GLenum type)
+size_t
+gl_sizeof(GLenum type)
 {
 	size_t size = 0;
 

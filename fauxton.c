@@ -13,6 +13,7 @@
 #include "matstack.h"
 #include "view.h"
 
+#include "axis.h"
 #include "landscape.h"
 
 
@@ -23,10 +24,8 @@ void display();
 void reshape(int, int);
 void spaceball_motion(int, int, int);
 void spaceball_rotate(int, int, int);
+void keyboard_key(unsigned char, int, int);
 void glut_setup(int, char **);
-
-void *reload_shader_thread(void *);
-void setup_reload_shader_thread(struct GLshader *);
 
 
 GLuint winW = 512;
@@ -34,24 +33,26 @@ GLuint winH = 512;
 int sb_buttons[SB_BUTTONS_COUNT];
 
 struct landscape *landscape;
+struct view *view;
 
-void display()
+
+void
+display()
 {
-
-	modelview_rotate(1.f, 1.f, 1.f, 0.001f);
-
-	//glClearColor(1.f, 1.f, 1.f, 1.f);
+	//glClearColor(1.f, 1.f, 1.f, 1.f); 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUniformMatrix4fv(0, 1, GL_TRUE,
-			   (float *) projection_modelview_collapse());
-	landscape_draw(landscape);
+	view_update(view);
+	modelview_pushident();
+	//landscape_draw(landscape);
+	axis_draw();
+	modelview_pop();
 
 	glFlush();
 	//glutSwapBuffers();
 }
 
-void reshape(int w, int h)
+void
+reshape(int w, int h)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, w, h);
@@ -61,7 +62,8 @@ void reshape(int w, int h)
 	projection_set_perspective(90, (w * 1.f) / h, 1, 10);
 }
 
-void spaceball_motion(int x, int y, int z)
+void
+spaceball_motion(int x, int y, int z)
 {
 	GLfloat k = 0.0001;
 
@@ -69,23 +71,54 @@ void spaceball_motion(int x, int y, int z)
 	modelview_translate(x * k, y * k, z * k);
 }
 
-void spaceball_rotate(int rx, int ry, int rz)
+void
+spaceball_rotate(int rx, int ry, int rz)
 {
 	GLfloat k = 0.01;
 
-	printf("r: %04.04f %04.04f %04.04f\n", rx * 1.f, ry * 1.f,
-	       rz * 1.f);
+	printf("r: %04.04f %04.04f %04.04f\n", rx * 1.f, ry * 1.f, rz * 1.f);
 	modelview_rotate(rx, ry, rz, k);
 }
 
-void spaceball_button(int button, int state)
+void
+spaceball_button(int button, int state)
 {
 	printf("%d, %d\n", button, state);
 	sb_buttons[button] = state;
 }
 
+void
+keyboard_key(unsigned char key, int x, int y)
+{
+	GLfloat d = 0.1;
 
-void glut_setup(int argc, char **argv)
+	/* X right to left */
+	/* Y down to up */
+	/* Z in to out */
+	switch (key) {
+	case 'a': view_translate(view, 0, d, 0); break;
+	case 'e': view_translate(view, 0,-d, 0); break;
+
+	case '.': view_translate(view, 0, 0, d); break;
+	case '\'':view_translate(view, 0, 0,-d); break;
+
+	case ',': view_translate(view, d, 0, 0); break;
+	case 'o': view_translate(view,-d, 0, 0); break;
+
+	case 'A': view_rotate(view, 0, 1, 0, d); break;
+	case 'E': view_rotate(view, 0,-1, 0, d); break;
+
+	case '>': view_rotate(view, 0, 0, 1, d); break;
+	case '"': view_rotate(view, 0, 0,-1, d); break;
+
+	case '<': view_rotate(view, 1, 0, 0, d); break;
+	case 'O': view_rotate(view,-1, 0, 0, d); break;
+	}
+}
+
+
+void
+glut_setup(int argc, char **argv)
 {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH);
@@ -103,7 +136,8 @@ void glut_setup(int argc, char **argv)
 	}
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	vec3 eye = { 0, 0, -5 };
 	vec3 obj = { 0, 0, 0 };
@@ -115,14 +149,14 @@ int main(int argc, char **argv)
 
 	projection_pushident();
 	modelview_pushident();
-	modelview_lookat(eye, obj, up);
-	modelview_pushident();
+	view = view_create(eye, obj, up);
 
 	landscape = landscape_create();
 
 	glutSpaceballMotionFunc(spaceball_motion);
 	glutSpaceballRotateFunc(spaceball_rotate);
 	glutSpaceballButtonFunc(spaceball_button);
+	glutKeyboardFunc(keyboard_key);
 
 	glutDisplayFunc(display);
 	glutIdleFunc(display);
