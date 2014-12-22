@@ -24,7 +24,8 @@ struct watched_program {
 static void *watched_program_thread(void *);
 
 
-void update_program(struct watched_program *w)
+void
+update_program(struct watched_program *w)
 {
 	int i;
 	if (w->needs_update && !pthread_mutex_trylock(&w->m)) {
@@ -38,7 +39,8 @@ void update_program(struct watched_program *w)
 	}
 }
 
-static void *watched_program_thread(void *v)
+static void *
+watched_program_thread(void *v)
 {
 	struct inotify_event ev;
 	char buf[256];
@@ -83,7 +85,8 @@ static void *watched_program_thread(void *v)
 	return NULL;
 }
 
-struct watched_program *create_watched_program(struct GLprogram *p)
+struct watched_program *
+create_watched_program(struct GLprogram *p)
 {
 	struct watched_program *w;
 	pthread_t id;
@@ -103,7 +106,8 @@ struct watched_program *create_watched_program(struct GLprogram *p)
 	return w;
 }
 
-void free_watched_program(struct watched_program *w)
+void
+free_watched_program(struct watched_program *w)
 {
 	if (w != NULL)
 		free(w);

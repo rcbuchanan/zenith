@@ -112,7 +112,8 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *);
 static void polyhedron_free(struct polyhedron *);
 
 
-void create_programs()
+void
+create_programs()
 {
 	struct GLshader *vtx;
 	struct GLshader *line;
@@ -137,7 +138,8 @@ void create_programs()
 		errx(1, __FILE__ ": problem watching file");
 }
 
-struct landscape *landscape_create()
+struct landscape *
+landscape_create()
 {
 	struct landscape *l;
 	struct polyhedron *p, *pp;
@@ -189,17 +191,13 @@ struct landscape *landscape_create()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
 		     l->tri->size, l->tri->d, GL_STATIC_DRAW);
 
-	glBindVertexArray(l->vtx->id);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-			      3 * 2 * sizeof(GLfloat), 0);
-	glEnableVertexAttribArray(0);
-
 	polyhedron_free(p);
 
 	return l;
 }
 
-void landscape_draw(struct landscape *l)
+void
+landscape_draw(struct landscape *l)
 {
 
 	static GLfloat t = 0.0;
@@ -213,10 +211,7 @@ void landscape_draw(struct landscape *l)
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
 			      3 * 2 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1,
-			      3,
-			      GL_FLOAT,
-			      GL_FALSE,
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
 			      3 * 2 * sizeof(GLfloat),
 			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
@@ -281,8 +276,9 @@ update_adj(struct hypernode *hna, struct hypernode *hnb,
 	}
 }
 
-static struct polyhedron *polyhedron_createsubdivided(struct polyhedron
-						      *in)
+static struct polyhedron *
+polyhedron_createsubdivided(struct polyhedron
+			    *in)
 {
 	struct polyhedron *out;
 
@@ -363,7 +359,8 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron
 	return out;
 }
 
-static void polyhedron_free(struct polyhedron *p)
+static void
+polyhedron_free(struct polyhedron *p)
 {
 	if (p->f)
 		free(p->f);
