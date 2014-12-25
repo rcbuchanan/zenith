@@ -1,0 +1,2 @@
+#define zenith_VERSION_MAJOR @zenith_VERSION_MAJOR@
+#define zenith_VERSION_MINOR @zenith_VERSION_MINOR@
