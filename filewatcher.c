@@ -24,12 +24,11 @@ struct watched_program {
 static void *watched_program_thread(void *);
 
 
-void
-update_program(struct watched_program *w)
+void update_program(struct watched_program *w)
 {
 	int i;
 	if (w->needs_update && !pthread_mutex_trylock(&w->m)) {
-		for (i = 0; i < w->p->nss; i++)
+		for (i = 0; i < w->p->ns; i++)
 			load_GLshader(w->p->ss[i]);
 		link_GLprogram(w->p);
 
@@ -39,8 +38,7 @@ update_program(struct watched_program *w)
 	}
 }
 
-static void *
-watched_program_thread(void *v)
+static void *watched_program_thread(void *v)
 {
 	struct inotify_event ev;
 	char buf[256];
@@ -53,9 +51,8 @@ watched_program_thread(void *v)
 	if ((fd = inotify_init()) == -1)
 		errx(1, __FILE__ ": auto reloading shader stuff");
 
-	for (i = 0; i < w->p->nss; i++)
-		if (inotify_add_watch(fd, w->p->ss[i]->path, IN_MODIFY) ==
-		    -1)
+	for (i = 0; i < w->p->ns; i++)
+		if (inotify_add_watch(fd, w->p->ss[i]->path, IN_MODIFY) == -1)
 			errx(1, __FILE__ ": auto reloading shader stuff");
 
 	for (;;) {
@@ -85,8 +82,7 @@ watched_program_thread(void *v)
 	return NULL;
 }
 
-struct watched_program *
-create_watched_program(struct GLprogram *p)
+struct watched_program *create_watched_program(struct GLprogram *p)
 {
 	struct watched_program *w;
 	pthread_t id;
@@ -106,8 +102,7 @@ create_watched_program(struct GLprogram *p)
 	return w;
 }
 
-void
-free_watched_program(struct watched_program *w)
+void free_watched_program(struct watched_program *w)
 {
 	if (w != NULL)
 		free(w);

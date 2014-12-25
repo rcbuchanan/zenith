@@ -7,14 +7,25 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
+#include "tga.h"
+//#include <png.h>
+
 #include "util.h"
 
 
 #define MAX_SHADERS	10
 
 
-struct GLvarray *
-create_GLvarray(GLsizei s, GLuint n)
+static GLenum cube_axes[] = {
+	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+	GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+	GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+	GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+	GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+};
+
+struct GLvarray *create_GLvarray(GLsizei s, GLuint n)
 {
 	struct GLvarray *v;
 
@@ -27,8 +38,7 @@ create_GLvarray(GLsizei s, GLuint n)
 	return v;
 }
 
-void
-free_GLvarray(struct GLvarray *v)
+void free_GLvarray(struct GLvarray *v)
 {
 	errx(1, "free_GLvarray does not free in openGL!");
 
@@ -39,8 +49,7 @@ free_GLvarray(struct GLvarray *v)
 	free(v);
 }
 
-struct GLbuffer *
-create_GLbuffer(GLsizei s, GLuint n)
+struct GLbuffer *create_GLbuffer(GLsizei s, GLuint n)
 {
 	struct GLbuffer *b;
 
@@ -49,77 +58,71 @@ create_GLbuffer(GLsizei s, GLuint n)
 
 	b->n = n;
 	b->size = s * n;
-	if ((b->d = malloc(b->size)) == NULL)
-		errx(1, __FILE__ ": malloc");
 
 	glGenBuffers(1, &(b->id));
 
 	return b;
 }
 
-void
-free_GLbuffer(struct GLbuffer *b)
+void bindonce_GLbuffer(struct GLbuffer *b, GLenum type, void *v)
+{
+	glBindBuffer(type, b->id);
+	glBufferData(type, b->size, v, GL_STATIC_DRAW);
+}
+
+void free_GLbuffer(struct GLbuffer *b)
 {
 	errx(1, "free_GLbuffer does not free in openGL!");
 
 	if (b == NULL)
 		return;
-	if (b->d != NULL)
-		free(b->d);
 	free(b);
 }
 
-struct GLprogram *
-create_GLprogram()
+struct GLprogram *create_GLprogram()
 {
 	struct GLprogram *p;
 
 	if ((p = malloc(sizeof(struct GLprogram))) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	if ((p->ss =
-	     malloc(sizeof(struct GLshader *) * MAX_SHADERS)) == NULL)
+	if ((p->ss = malloc(sizeof(struct GLshader *) * MAX_SHADERS)) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	p->nss = 0;
-
+	p->ns = 0;
 	p->id = glCreateProgram();
 
 	return p;
 }
 
-void
-addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
+void addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
 {
-	if (p->nss >= MAX_SHADERS)
+	if (p->ns >= MAX_SHADERS)
 		errx(1, __FILE__ ": too many shaders attached!");
-	p->ss[p->nss++] = s;
+	p->ss[p->ns++] = s;
 }
 
 
-void
-link_GLprogram(struct GLprogram *p)
+void link_GLprogram(struct GLprogram *p)
 {
 	int i;
 
-	for (i = 0; i < p->nss; i++)
+	for (i = 0; i < p->ns; i++)
 		glAttachShader(p->id, p->ss[i]->id);
 	glLinkProgram(p->id);
-	for (i = 0; i < p->nss; i++)
+	for (i = 0; i < p->ns; i++)
 		glDetachShader(p->id, p->ss[i]->id);
 
 	print_program_log(p->id);
 }
 
-void
-free_GLprogram(struct GLprogram *p)
+void free_GLprogram(struct GLprogram *p)
 {
 	glDeleteProgram(p->id);
 	free(p);
 }
 
-struct GLshader *
-create_GLshader(const char *sfile, GLenum type)
+struct GLshader *create_GLshader(const char *sfile, GLenum type)
 {
 	struct GLshader *s;
 
@@ -141,8 +144,7 @@ create_GLshader(const char *sfile, GLenum type)
 	return s;
 }
 
-GLuint
-load_GLshader(struct GLshader * s)
+GLuint load_GLshader(struct GLshader * s)
 {
 	GLchar *buf;
 	FILE *f;
@@ -166,8 +168,7 @@ load_GLshader(struct GLshader * s)
 	if (fread(buf, 1, (size_t) len, f) != len)
 		goto failure;
 
-	glShaderSource(s->id, 1, (const GLchar **) &buf,
-		       (const GLint *) &len);
+	glShaderSource(s->id, 1, (const GLchar **) &buf, (const GLint *) &len);
 	glCompileShader(s->id);
 	print_shader_log(s->id);
 
@@ -175,11 +176,11 @@ load_GLshader(struct GLshader * s)
 
 	goto cleanup;
 
-      failure:
+failure:
 	warnx(__FILE__ ": trouble loading %s", s->path);
 	rv = -1;
 
-      cleanup:
+cleanup:
 	if (buf != NULL)
 		free(buf);
 	if (f != NULL)
@@ -188,8 +189,7 @@ load_GLshader(struct GLshader * s)
 	return rv;
 }
 
-void
-free_GLshader(struct GLshader *s)
+void free_GLshader(struct GLshader *s)
 {
 	if (s->path)
 		free(s->path);
@@ -197,8 +197,124 @@ free_GLshader(struct GLshader *s)
 	free(s);
 }
 
-struct GLunibuf *
-create_GLunibuf(struct GLprogram *p, const char *name)
+struct GLtexture * create_GLtexture(GLuint w, GLuint h)
+{
+	struct GLtexture *t;
+
+	if ((t = malloc(sizeof(struct GLtexture))) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	t->w = w;
+	t->h = h;
+	glGenTextures(1, &t->id);
+
+	return t;
+}
+
+void loadtgacube_GLtexture(struct GLtexture *t, char *fpaths[6])
+{
+	tTGA ttga[6];
+	GLenum mode;
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, t->id);
+
+	for (int i = 0; i < ARRAY_SIZE(cube_axes); i++) {
+		load_TGA(ttga + i, fpaths[i]);
+		mode = ttga[i].alpha ? GL_RGBA : GL_RGB;
+		glTexImage2D(cube_axes[i], 0, mode, t->w, t->h,
+			     0, mode, GL_UNSIGNED_BYTE, ttga[i].data);
+	}
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
+
+/*
+void xpm_GLtexture(struct GLtexture *t, char *fn)
+{
+	FILE *f;
+	unsigned char *d;
+	unsigned long len;
+
+	f = fopen(fn, "rb");
+	if (f == NULL)
+		goto failure;
+
+	if (fseek(f, 0, SEEK_END))
+		goto failure;
+	len = ftell(f);
+	if (fseek(f, 0, SEEK_SET))
+		goto failure;
+
+	if ((d = malloc(len)) == NULL)
+		errx(1, __FILE__ ": malloc");
+	if (fread(d, f, 1, len) != len)
+		goto failure;
+}
+*/
+
+/*
+void png_GLtexture(struct GLtexture *t, char *fn)
+{
+	png_structp pngp;
+	png_infop infop;
+	png_bytep *rp;
+	GLuint w, h;
+	GLuint i;
+	GLint depth, colortype, npasses;
+	FILE *f;
+	unsigned char sig[8];
+
+	// all I want to do is load a stupid png...
+	// based on http://zarb.org/~gc/html/libpng.html
+
+	f = fopen(fn, "rb");
+	if (f == NULL)
+		errx(1, __FILE__ ": couldn't open %s", fn);
+	if (fread(sig, 1, 8, f) != 8 || png_sig_cmp(sig, 0, 8))
+		errx(1, __FILE__ ": confusing png sig for %s", fn);
+
+	pngp = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (pngp == NULL)
+		errx(1, __FILE__ ": png trouble");
+
+	infop = png_create_info_struct(pngp);
+	if (infop == NULL)
+		errx(1, __FILE__ ": png");
+
+	if (setjmp(png_jmpbuf(pngp)))
+		errx(1, __FILE__ ": png longjumped error");
+
+	png_init_io(pngp, f);
+	png_set_sig_bytes(pngp, 8);
+
+	png_read_info(pngp, infop);
+
+	w = png_get_image_width(pngp, infop);
+	h = png_get_image_height(pngp, infop);
+	colortype = png_get_color_type(pngp, infop);
+	depth = png_get_bit_depth(pngp, infop);
+	npasses = png_set_interlace_handling(pngp);
+
+	png_read_update_info(pngp, infop);
+
+	if (setjmp(png_jmpbuf(pngp)))
+		errx(1, __FILE__ ": png read_image error");
+
+	rp = (png_bytep *) malloc(sizeof(png_bytep) * h);
+
+	for (i = 0; i < h; i++)
+		rp[i] = malloc(png_get_rowbytes(pngp, infop));
+
+	png_destroy_read_struct(&pngp, &infop, png_infopp_NULL);
+
+	fclose(f);
+}
+*/
+
+struct GLunibuf *create_GLunibuf(struct GLprogram *p, const char *name)
 {
 	struct GLunibuf *u = NULL;
 	GLsizei bs;
@@ -225,8 +341,7 @@ create_GLunibuf(struct GLprogram *p, const char *name)
 				  (GLint *) & u->nuni);
 
 	if (u->nuni != 0) {
-		if ((u->unis =
-		     malloc(sizeof(struct GLuni) * u->nuni)) == NULL)
+		if ((u->unis = malloc(sizeof(struct GLuni) * u->nuni)) == NULL)
 			goto failed;
 
 		if ((is = malloc(sizeof(GLint) * u->nuni)) == NULL)
@@ -268,16 +383,14 @@ create_GLunibuf(struct GLprogram *p, const char *name)
 	return NULL;
 }
 
-void
-free_GLunibuf(struct GLunibuf *u)
+void free_GLunibuf(struct GLunibuf *u)
 {
 	free_GLbuffer(u->buf);
 	free(u->unis);
 	free(u);
 }
 
-void
-print_program_log(GLuint prog)
+void print_program_log(GLuint prog)
 {
 	GLsizei len = 0;
 	GLchar *buf;
@@ -290,12 +403,10 @@ print_program_log(GLuint prog)
 	glGetProgramInfoLog(prog, len, &len, buf);
 	printf("%s\n", (char *) buf);
 
-/*cleanup:*/
 	free(buf);
 }
 
-void
-print_shader_log(GLuint shader)
+void print_shader_log(GLuint shader)
 {
 	GLsizei len = 0;
 	GLchar *buf;
@@ -312,42 +423,41 @@ print_shader_log(GLuint shader)
 	free(buf);
 }
 
-size_t
-gl_sizeof(GLenum type)
+size_t gl_sizeof(GLenum type)
 {
 	size_t size = 0;
 
 #define CASE(Enum, Count, Type) \
 		case Enum: size = Count * sizeof(Type); break
 	switch (type) {
-		CASE(GL_FLOAT, 1, GLfloat);
-		CASE(GL_FLOAT_VEC2, 2, GLfloat);
-		CASE(GL_FLOAT_VEC3, 3, GLfloat);
-		CASE(GL_FLOAT_VEC4, 4, GLfloat);
-		CASE(GL_INT, 1, GLint);
-		CASE(GL_INT_VEC2, 2, GLint);
-		CASE(GL_INT_VEC3, 3, GLint);
-		CASE(GL_INT_VEC4, 4, GLint);
-		CASE(GL_UNSIGNED_INT, 1, GLuint);
-		CASE(GL_UNSIGNED_INT_VEC2, 2, GLuint);
-		CASE(GL_UNSIGNED_INT_VEC3, 3, GLuint);
-		CASE(GL_UNSIGNED_INT_VEC4, 4, GLuint);
-		CASE(GL_BOOL, 1, GLboolean);
-		CASE(GL_BOOL_VEC2, 2, GLboolean);
-		CASE(GL_BOOL_VEC3, 3, GLboolean);
-		CASE(GL_BOOL_VEC4, 4, GLboolean);
-		CASE(GL_FLOAT_MAT2, 6, GLfloat);
-		CASE(GL_FLOAT_MAT2x4, 8, GLfloat);
-		CASE(GL_FLOAT_MAT3, 9, GLfloat);
-		CASE(GL_FLOAT_MAT3x2, 6, GLfloat);
-		CASE(GL_FLOAT_MAT3x4, 12, GLfloat);
-		CASE(GL_FLOAT_MAT4, 16, GLfloat);
-		CASE(GL_FLOAT_MAT4x2, 8, GLfloat);
-		CASE(GL_FLOAT_MAT4x3, 12, GLfloat);
+		  CASE(GL_FLOAT, 1, GLfloat);
+		  CASE(GL_FLOAT_VEC2, 2, GLfloat);
+		  CASE(GL_FLOAT_VEC3, 3, GLfloat);
+		  CASE(GL_FLOAT_VEC4, 4, GLfloat);
+		  CASE(GL_INT, 1, GLint);
+		  CASE(GL_INT_VEC2, 2, GLint);
+		  CASE(GL_INT_VEC3, 3, GLint);
+		  CASE(GL_INT_VEC4, 4, GLint);
+		  CASE(GL_UNSIGNED_INT, 1, GLuint);
+		  CASE(GL_UNSIGNED_INT_VEC2, 2, GLuint);
+		  CASE(GL_UNSIGNED_INT_VEC3, 3, GLuint);
+		  CASE(GL_UNSIGNED_INT_VEC4, 4, GLuint);
+		  CASE(GL_BOOL, 1, GLboolean);
+		  CASE(GL_BOOL_VEC2, 2, GLboolean);
+		  CASE(GL_BOOL_VEC3, 3, GLboolean);
+		  CASE(GL_BOOL_VEC4, 4, GLboolean);
+		  CASE(GL_FLOAT_MAT2, 6, GLfloat);
+		  CASE(GL_FLOAT_MAT2x4, 8, GLfloat);
+		  CASE(GL_FLOAT_MAT3, 9, GLfloat);
+		  CASE(GL_FLOAT_MAT3x2, 6, GLfloat);
+		  CASE(GL_FLOAT_MAT3x4, 12, GLfloat);
+		  CASE(GL_FLOAT_MAT4, 16, GLfloat);
+		  CASE(GL_FLOAT_MAT4x2, 8, GLfloat);
+		  CASE(GL_FLOAT_MAT4x3, 12, GLfloat);
 #undef CASE
-	default:
-		errx(1, __FILE__ ": Unknown type: 0x%x", type);
-		break;
+	  default:
+		  errx(1, __FILE__ ": Unknown type: 0x%x", type);
+		  break;
 	}
 
 	return size;

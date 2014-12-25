@@ -17,12 +17,9 @@
 #include "view.h"
 
 
-#define ABS(x) (((x) > 0) ? (x) : (-(x)))
-
-
 struct hyperedge {
-	GLuint p0;
-	GLuint p1;
+	GLuint v0;
+	GLuint v1;
 	int index;
 };
 
@@ -37,8 +34,8 @@ struct landscape {
 };
 
 struct polyhedron {
-	GLfloat(*p)[3];
-	int np;
+	GLfloat(*v)[3];
+	int nv;
 	 GLuint(*f)[3];
 	int nf;
 };
@@ -56,47 +53,47 @@ static int match[9][4] = {
 	{2, 0, 2, 1}
 };
 
-static GLfloat ico_points[12][3] = {
-	{0.00000000, 0.00000000, -0.95105650},
-	{0.00000000, 0.85065080, -0.42532537},
-	{0.80901698, 0.26286556, -0.42532537},
-	{0.50000000, -0.68819095, -0.42532537},
+static GLfloat ico_vtx[12][3] = {
+	{ 0.00000000,  0.00000000, -0.95105650},
+	{ 0.00000000,  0.85065080, -0.42532537},
+	{ 0.80901698,  0.26286556, -0.42532537},
+	{ 0.50000000, -0.68819095, -0.42532537},
 	{-0.50000000, -0.68819095, -0.42532537},
-	{-0.80901698, 0.26286556, -0.42532537},
-	{0.50000000, 0.68819095, 0.42532537},
-	{0.80901698, -0.26286556, 0.42532537},
-	{0.00000000, -0.85065080, 0.42532537},
-	{-0.80901698, -0.26286556, 0.42532537},
-	{-0.50000000, 0.68819095, 0.42532537},
-	{0.00000000, 0.00000000, 0.95105650}
+	{-0.80901698,  0.26286556, -0.42532537},
+	{ 0.50000000,  0.68819095,  0.42532537},
+	{ 0.80901698, -0.26286556,  0.42532537},
+	{ 0.00000000, -0.85065080,  0.42532537},
+	{-0.80901698, -0.26286556,  0.42532537},
+	{-0.50000000,  0.68819095,  0.42532537},
+	{ 0.00000000,  0.00000000,  0.95105650}
 };
 
 static GLuint ico_faces[20][3] = {
-	{1, 2, 0},
-	{2, 3, 0},
-	{3, 4, 0},
-	{4, 5, 0},
-	{5, 1, 0},
-	{10, 6, 1},
-	{6, 2, 1},
-	{6, 7, 2},
-	{7, 3, 2},
-	{7, 8, 3},
-	{8, 4, 3},
-	{8, 9, 4},
-	{9, 5, 4},
-	{9, 10, 5},
-	{10, 1, 5},
-	{11, 6, 10},
-	{11, 7, 6},
-	{11, 8, 7},
-	{11, 9, 8},
-	{11, 10, 9}
+	{1,   2,  0},
+	{2,   3,  0},
+	{3,   4,  0},
+	{4,   5,  0},
+	{5,   1,  0},
+	{10,  6,  1},
+	{6,   2,  1},
+	{6,   7,  2},
+	{7,   3,  2},
+	{7,   8,  3},
+	{8,   4,  3},
+	{8,   9,  4},
+	{9,   5,  4},
+	{9,  10,  5},
+	{10,  1,  5},
+	{11,  6, 10},
+	{11,  7,  6},
+	{11,  8,  7},
+	{11,  9,  8},
+	{11, 10,  9}
 };
 
 static struct polyhedron ico_polyhedron = {
-	.p = ico_points,
-	.np = 12,
+	.v = ico_vtx,
+	.nv = 12,
 	.f = ico_faces,
 	.nf = 20,
 };
@@ -112,8 +109,7 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *);
 static void polyhedron_free(struct polyhedron *);
 
 
-void
-create_programs()
+void create_programs()
 {
 	struct GLshader *vtx;
 	struct GLshader *line;
@@ -138,8 +134,7 @@ create_programs()
 		errx(1, __FILE__ ": problem watching file");
 }
 
-struct landscape *
-landscape_create()
+struct landscape *landscape_create()
 {
 	struct landscape *l;
 	struct polyhedron *p, *pp;
@@ -153,51 +148,49 @@ landscape_create()
 	if ((l = malloc(sizeof(struct landscape))) == NULL)
 		errx(1, __FILE__ ": allocation failed");
 
-	if ((p = polyhedron_createsubdivided(&ico_polyhedron)) == NULL)
-		errx(1, __FILE__ ": failed to create polyhedron");
-	if ((pp = polyhedron_createsubdivided(p)) == NULL)
-		errx(1, __FILE__ ": failed to create polyhedron");
-	free(p);
-	if ((p = polyhedron_createsubdivided(pp)) == NULL)
-		errx(1, __FILE__ ": failed to create polyhedron");
-	free(pp);
-	if ((pp = polyhedron_createsubdivided(p)) == NULL)
-		errx(1, __FILE__ ": failed to create polyhedron");
-	free(p);
-	if ((p = polyhedron_createsubdivided(pp)) == NULL)
-		errx(1, __FILE__ ": failed to create polyhedron");
-	free(pp);
-
-	l->vtx = create_GLvarray(sizeof(GLfloat), 6 * p->np);
-	for (fp = l->vtx->buf->d, i = 0; i < p->np; i++) {
-		fp[i][0] = p->p[i][0];
-		fp[i][1] = p->p[i][1];
-		fp[i][2] = p->p[i][2];
-		fp[i][3] = p->p[i][0];
-		fp[i][4] = p->p[i][1];
-		fp[i][5] = p->p[i][2];
+	for (p = &ico_polyhedron, i = 0; i < 5; i++) {
+		if ((pp = polyhedron_createsubdivided(p)) == NULL)
+			errx(1, __FILE__ ": failed to create polyhedron");
+		if (p != &ico_polyhedron)
+			free(p);
+		p = pp;
 	}
-	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
-	glBufferData(GL_ARRAY_BUFFER,
-		     l->vtx->buf->size, l->vtx->buf->d, GL_STATIC_DRAW);
+
+	l->vtx = create_GLvarray(sizeof(GLfloat), 6 * p->nv);
+	if ((fp = malloc(l->vtx->buf->size)) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	for (i = 0; i < p->nv; i++) {
+		fp[i][0] = p->v[i][0];
+		fp[i][1] = p->v[i][1];
+		fp[i][2] = p->v[i][2];
+		fp[i][3] = p->v[i][0];
+		fp[i][4] = p->v[i][1];
+		fp[i][5] = p->v[i][2];
+	}
+
+	bindonce_GLbuffer(l->vtx->buf, GL_ARRAY_BUFFER, fp);
+	free(fp);
 
 	l->tri = create_GLbuffer(sizeof(GLuint), 3 * p->nf);
-	for (up = l->tri->d, i = 0; i < p->nf; i++) {
+	if ((up = malloc(l->tri->size)) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	for (i = 0; i < p->nf; i++) {
 		up[i][0] = (GLfloat) p->f[i][0];
 		up[i][1] = (GLfloat) p->f[i][1];
 		up[i][2] = (GLfloat) p->f[i][2];
 	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-		     l->tri->size, l->tri->d, GL_STATIC_DRAW);
+
+	bindonce_GLbuffer(l->tri, GL_ELEMENT_ARRAY_BUFFER, up);
+	free(up);
 
 	polyhedron_free(p);
 
 	return l;
 }
 
-void
-landscape_draw(struct landscape *l)
+void landscape_draw(struct landscape *l)
 {
 
 	static GLfloat t = 0.0;
@@ -211,8 +204,7 @@ landscape_draw(struct landscape *l)
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
 			      3 * 2 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
-			      3 * 2 * sizeof(GLfloat),
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * 2 * sizeof(GLfloat),
 			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
@@ -250,8 +242,7 @@ landscape_draw(struct landscape *l)
 }
 
 static void
-update_adj(struct hypernode *hna, struct hypernode *hnb,
-	   struct hyperedge **hep)
+update_adj(struct hypernode *hna, struct hypernode *hnb, struct hyperedge **hep)
 {
 	GLuint *fa;
 	GLuint *fb;
@@ -266,8 +257,8 @@ update_adj(struct hypernode *hna, struct hypernode *hnb,
 		if (fa[match[i][1]] != fb[match[i][3]])
 			continue;
 
-		(*hep)->p0 = fa[match[i][0]];
-		(*hep)->p1 = fa[match[i][1]];
+		(*hep)->v0 = fa[match[i][0]];
+		(*hep)->v1 = fa[match[i][1]];
 
 		hna->e[match[i][0]] = *hep;
 		hnb->e[match[i][3]] = *hep;
@@ -276,17 +267,16 @@ update_adj(struct hypernode *hna, struct hypernode *hnb,
 	}
 }
 
-static struct polyhedron *
-polyhedron_createsubdivided(struct polyhedron
-			    *in)
+static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
 {
 	struct polyhedron *out;
 
 	struct hyperedge *he;
-	int nhe;
 	struct hypernode *hn;
-	int nhn;
 	struct hyperedge *hep;
+
+	int nhe;
+	int nhn;
 
 	GLuint i;
 	GLuint j;
@@ -312,26 +302,22 @@ polyhedron_createsubdivided(struct polyhedron
 	if ((out = malloc(sizeof(out[0]))) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	out->np = nhn + nhe;
+	out->nv = nhn + nhe;
 	out->nf = nhn * 4;
-	if ((out->p = malloc(sizeof(out->p[0]) * out->np)) == NULL)
+	if ((out->v = malloc(sizeof(out->v[0]) * out->nv)) == NULL)
 		errx(1, __FILE__ ": malloc");
 	if ((out->f = malloc(sizeof(out->f[0]) * out->nf)) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	// copy original points verbatim
-	memcpy(out->p, in->p, sizeof(in->p[0]) * in->np);
+	// copy original verticies (normalized)
+	for (i = 0; i < in->nv; i++)
+		vec3_norm(out->v[i], in->v[i]);
 
-	// create subdivided points
+	// create subdivided verticies (normalized)
 	for (i = 0; i < nhe; i++) {
 		he[i].index = nhn + i;
-
-		out->p[nhn + i][0] =
-		    0.5 * out->p[he[i].p0][0] + 0.5 * out->p[he[i].p1][0];
-		out->p[nhn + i][1] =
-		    0.5 * out->p[he[i].p0][1] + 0.5 * out->p[he[i].p1][1];
-		out->p[nhn + i][2] =
-		    0.5 * out->p[he[i].p0][2] + 0.5 * out->p[he[i].p1][2];
+		vec3_add(out->v[nhn + i], out->v[he[i].v0], out->v[he[i].v1]);
+		vec3_norm(out->v[nhn + i], out->v[nhn + i]);
 	}
 
 	// create new faces
@@ -359,12 +345,11 @@ polyhedron_createsubdivided(struct polyhedron
 	return out;
 }
 
-static void
-polyhedron_free(struct polyhedron *p)
+static void polyhedron_free(struct polyhedron *p)
 {
 	if (p->f)
 		free(p->f);
-	if (p->p)
-		free(p->p);
+	if (p->v)
+		free(p->v);
 	free(p);
 }

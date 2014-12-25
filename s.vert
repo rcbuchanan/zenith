@@ -12,7 +12,8 @@ uniform float t;
 float map(in vec3 p)
 {
 	return 1 + sin(length(pos) * t * 0.1) * 0.1;
-	//return 1 + sin(length(pos) * 200) * 0.1;
+	//return 1 + sin(pos.x * 0.2 * t) * 0.1;
+	return 1.f;
 }
 
 vec3 map_norm(in vec3 p)
@@ -29,6 +30,7 @@ vec3 map_norm(in vec3 p)
 void main() {
 	//gl_Position = mvmat * vec4(pos, 1.0);
 	gl_Position = vec4(pos * map(pos), 1.0);
+	//gl_Position = vec4(pos, 1.0);
 	gl_Position *= mvmat;
 
 	vec4 tmp = vec4(norm, 1.0);
