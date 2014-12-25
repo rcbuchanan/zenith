@@ -17,26 +17,22 @@
 #include "view.h"
 
 
-#define ABS(x) (((x) > 0) ? (x) : (-(x)))
-
-
 static struct GLvarray *vdata = NULL;
 static struct GLprogram *vprog = NULL;
 
-static GLfloat coloredverticies[] = {
-	0.f, 0.f, 0.f, 1.f, 0.f, 0.f, // red X
+static GLfloat axis_vtx[] = {
+	0.f, 0.f, 0.f, 1.f, 0.f, 0.f,	// red X
 	1.f, 0.f, 0.f, 1.f, 0.f, 0.f,
 
-	0.f, 0.f, 0.f, 0.f, 1.f, 0.f, // green Y
+	0.f, 0.f, 0.f, 0.f, 1.f, 0.f,	// green Y
 	0.f, 1.f, 0.f, 0.f, 1.f, 0.f,
 
-	0.f, 0.f, 0.f, 0.f, 0.f, 1.f, // blue Z
+	0.f, 0.f, 0.f, 0.f, 0.f, 1.f,	// blue Z
 	0.f, 0.f, 1.f, 0.f, 0.f, 1.f
 };
 
 
-static void
-axis_init()
+static void axis_init()
 {
 	struct GLshader *vtx;
 	struct GLshader *line;
@@ -49,39 +45,22 @@ axis_init()
 	addshader_GLprogram(vprog, line);
 	link_GLprogram(vprog);
 
-	vdata = create_GLvarray(sizeof (GLfloat), 3 * 2 * 2 * 3);
-	memcpy(vdata->buf->d, coloredverticies, vdata->buf->size);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vdata->buf->id);
-	glBufferData(GL_ARRAY_BUFFER,
-		     vdata->buf->size,
-		     vdata->buf->d,
-		     GL_STATIC_DRAW);
+	vdata = create_GLvarray(sizeof(GLfloat), 36);
+	bindonce_GLbuffer(vdata->buf, GL_ARRAY_BUFFER, axis_vtx);
 }
 
-void
-axis_draw()
+void axis_draw()
 {
-	if (vprog == NULL) axis_init();
+	if (vprog == NULL)
+		axis_init();
 
 	glBindVertexArray(vdata->id);
 	glBindBuffer(GL_ARRAY_BUFFER, vdata->buf->id);
 
-	glVertexAttribPointer(
-	    0,
-	    3,
-	    GL_FLOAT,
-	    GL_FALSE,
-	    3 * 2 * sizeof(GLfloat),
-	    0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(
-	    1,
-	    3,
-	    GL_FLOAT,
-	    GL_FALSE,
-	    3 * 2 * sizeof(GLfloat),
-	    (void *) (sizeof(GLfloat) * 3));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
+			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
 	glEnable(GL_DEPTH_TEST);
@@ -92,5 +71,5 @@ axis_draw()
 			   (float *) projection_modelview_collapse());
 
 	glLineWidth(4);
-	glDrawArrays(GL_LINES, 0, 2 * 3 * 2 * 3);
+	glDrawArrays(GL_LINES, 0, vdata->buf->n);
 }

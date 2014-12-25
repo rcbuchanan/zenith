@@ -1,4 +1,5 @@
 #include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <GL/gl.h>
@@ -42,8 +43,7 @@ static void matstack_loadident(struct matstack *);
 static void matstack_pushident(struct matstack *);
 static void matstack_pop(struct matstack *);
 static void matstack_lookat(struct matstack *, vec3, vec3, vec3);
-static void matstack_translate(struct matstack *, GLfloat, GLfloat,
-			       GLfloat);
+static void matstack_translate(struct matstack *, GLfloat, GLfloat, GLfloat);
 static void matstack_rotate(struct matstack *, GLfloat, GLfloat, GLfloat,
 			    GLfloat);
 static void matstack_set_perspective(struct matstack *, GLfloat, GLfloat,
@@ -51,27 +51,23 @@ static void matstack_set_perspective(struct matstack *, GLfloat, GLfloat,
 static GLfloat *matstack_collapse(struct matstack *);
 
 
-static void
-matstack_update_cache(struct matstack *ms)
+static void matstack_update_cache(struct matstack *ms)
 {
 	if (ms->i < 0)
 		return;
 	else if (ms->i == 0)
 		mat4x4_dup(ms->cache[ms->i], ms->d[ms->i]);
 	else
-		mat4x4_mul(ms->cache[ms->i], ms->d[ms->i - 1],
-			   ms->d[ms->i]);
+		mat4x4_mul(ms->cache[ms->i], ms->d[ms->i - 1], ms->d[ms->i]);
 }
 
-static void
-matstack_loadident(struct matstack *ms)
+static void matstack_loadident(struct matstack *ms)
 {
 	mat4x4_identity(ms->d[ms->i]);
 	matstack_update_cache(ms);
 }
 
-static void
-matstack_pushident(struct matstack *ms)
+static void matstack_pushident(struct matstack *ms)
 {
 	if (++ms->i > MAX_SIZE)
 		errx(1, __FILE__ ": overflowed stack");
@@ -79,15 +75,13 @@ matstack_pushident(struct matstack *ms)
 	matstack_update_cache(ms);
 }
 
-static void
-matstack_pop(struct matstack *ms)
+static void matstack_pop(struct matstack *ms)
 {
 	if (--ms->i < 0)
 		errx(1, __FILE__ ": underflowed stack");
 }
 
-static void
-matstack_lookat(struct matstack *ms, vec3 eye, vec3 obj, vec3 up)
+static void matstack_lookat(struct matstack *ms, vec3 eye, vec3 obj, vec3 up)
 {
 	mat4x4_look_at(ms->d[ms->i], eye, obj, up);
 	matstack_update_cache(ms);
@@ -115,13 +109,11 @@ static void
 matstack_set_perspective(struct matstack *ms, GLfloat fov, GLfloat aspect,
 			 GLfloat n, GLfloat f)
 {
-	mat4x4_perspective(ms->d[ms->i], 3.14159 * fov / 360, aspect, n,
-			   f);
+	mat4x4_perspective(ms->d[ms->i], 3.14159 * fov / 360, aspect, n, f);
 	matstack_update_cache(ms);
 }
 
-static GLfloat *
-matstack_collapse(struct matstack *ms)
+static GLfloat *matstack_collapse(struct matstack *ms)
 {
 	if (ms->i >= 0)
 		return (GLfloat *) ms->cache[ms->i];
@@ -130,81 +122,68 @@ matstack_collapse(struct matstack *ms)
 }
 
 
-GLfloat *
-modelview_collapse()
+GLfloat *modelview_collapse()
 {
 	return matstack_collapse(&mvstack);
 }
 
-void
-modelview_pop()
+void modelview_pop()
 {
 	matstack_pop(&mvstack);
 }
 
-void
-modelview_pushident()
+void modelview_pushident()
 {
 	matstack_pushident(&mvstack);
 }
 
-void
-modelview_loadident()
+void modelview_loadident()
 {
 	matstack_loadident(&mvstack);
 }
 
-void
-modelview_lookat(vec3 eye, vec3 obj, vec3 up)
+void modelview_lookat(vec3 eye, vec3 obj, vec3 up)
 {
 	matstack_lookat(&mvstack, eye, obj, up);
 }
 
-void
-modelview_translate(GLfloat x, GLfloat y, GLfloat z)
+void modelview_translate(GLfloat x, GLfloat y, GLfloat z)
 {
 	matstack_translate(&mvstack, x, y, z);
 }
 
-void
-modelview_rotate(GLfloat x, GLfloat y, GLfloat z, GLfloat angle)
+void modelview_rotate(GLfloat x, GLfloat y, GLfloat z, GLfloat angle)
 {
 	matstack_rotate(&mvstack, x, y, z, angle);
 }
 
-GLfloat *
-projection_collapse()
+GLfloat *projection_collapse()
 {
 	return matstack_collapse(&prostack);
 }
 
-void
-projection_pop()
+void projection_pop()
 {
 	matstack_pop(&prostack);
 }
 
-void
-projection_pushident()
+void projection_pushident()
 {
 	matstack_pushident(&prostack);
 }
 
-void
-projection_loadident()
+void projection_loadident()
 {
 	matstack_loadident(&prostack);
 }
 
 void
-projection_set_perspective(GLfloat fov, GLfloat aspect, GLfloat n,
-			   GLfloat f)
+projection_set_perspective(GLfloat fov, GLfloat aspect, GLfloat n, GLfloat f)
 {
 	matstack_set_perspective(&prostack, fov, aspect, n, f);
 }
 
-GLfloat *
-projection_modelview_collapse()
+GLfloat *projection_modelview_collapse()
 {
 	mat4x4_mul(collapsedmat,
 		   (GLfloat(*)[4]) matstack_collapse(&prostack),

@@ -15,6 +15,7 @@
 
 #include "axis.h"
 #include "landscape.h"
+#include "skybox.h"
 
 
 #define SB_BUTTONS_COUNT 20
@@ -36,34 +37,39 @@ struct landscape *landscape;
 struct view *view;
 
 
-void
-display()
+void display()
 {
-	//glClearColor(1.f, 1.f, 1.f, 1.f); 
+	static GLfloat t;
+
+	//glClearColor(1.f, 1.f, 1.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	view_update(view);
-	modelview_pushident();
-	//landscape_draw(landscape);
+	modelview_translate(view->eye[0], -view->eye[1], -view->eye[2]);
 	axis_draw();
+
+	modelview_pushident();
+	//modelview_rotate(0, 1, 0, (t += 0.001));
+	//landscape_draw(landscape);
+	skybox_draw();
+
 	modelview_pop();
 
 	glFlush();
 	//glutSwapBuffers();
 }
 
-void
-reshape(int w, int h)
+void reshape(int w, int h)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, w, h);
 
 	winW = w;
 	winH = h;
-	projection_set_perspective(90, (w * 1.f) / h, 1, 10);
+	projection_set_perspective(90, (w * 1.f) / h, 1, 40);
 }
 
-void
-spaceball_motion(int x, int y, int z)
+void spaceball_motion(int x, int y, int z)
 {
 	GLfloat k = 0.0001;
 
@@ -71,8 +77,7 @@ spaceball_motion(int x, int y, int z)
 	modelview_translate(x * k, y * k, z * k);
 }
 
-void
-spaceball_rotate(int rx, int ry, int rz)
+void spaceball_rotate(int rx, int ry, int rz)
 {
 	GLfloat k = 0.01;
 
@@ -80,15 +85,13 @@ spaceball_rotate(int rx, int ry, int rz)
 	modelview_rotate(rx, ry, rz, k);
 }
 
-void
-spaceball_button(int button, int state)
+void spaceball_button(int button, int state)
 {
 	printf("%d, %d\n", button, state);
 	sb_buttons[button] = state;
 }
 
-void
-keyboard_key(unsigned char key, int x, int y)
+void keyboard_key(unsigned char key, int x, int y)
 {
 	GLfloat d = 0.1;
 
@@ -96,29 +99,52 @@ keyboard_key(unsigned char key, int x, int y)
 	/* Y down to up */
 	/* Z in to out */
 	switch (key) {
-	case 'a': view_translate(view, 0, d, 0); break;
-	case 'e': view_translate(view, 0,-d, 0); break;
+	  case 'a':
+		  view_translate(view, 0, d, 0);
+		  break;
+	  case 'e':
+		  view_translate(view, 0, -d, 0);
+		  break;
 
-	case '.': view_translate(view, 0, 0, d); break;
-	case '\'':view_translate(view, 0, 0,-d); break;
+	  case '.':
+		  view_translate(view, 0, 0, d);
+		  break;
+	  case '\'':
+		  view_translate(view, 0, 0, -d);
+		  break;
 
-	case ',': view_translate(view, d, 0, 0); break;
-	case 'o': view_translate(view,-d, 0, 0); break;
+	  case ',':
+		  view_translate(view, d, 0, 0);
+		  break;
+	  case 'o':
+		  view_translate(view, -d, 0, 0);
+		  break;
 
-	case 'A': view_rotate(view, 0, 1, 0, d); break;
-	case 'E': view_rotate(view, 0,-1, 0, d); break;
+	  case 'A':
+		  view_rotate(view, 0, 1, 0, d);
+		  break;
+	  case 'E':
+		  view_rotate(view, 0, -1, 0, d);
+		  break;
 
-	case '>': view_rotate(view, 0, 0, 1, d); break;
-	case '"': view_rotate(view, 0, 0,-1, d); break;
+	  case '>':
+		  view_rotate(view, 0, 0, 1, d);
+		  break;
+	  case '"':
+		  view_rotate(view, 0, 0, -1, d);
+		  break;
 
-	case '<': view_rotate(view, 1, 0, 0, d); break;
-	case 'O': view_rotate(view,-1, 0, 0, d); break;
+	  case '<':
+		  view_rotate(view, 1, 0, 0, d);
+		  break;
+	  case 'O':
+		  view_rotate(view, -1, 0, 0, d);
+		  break;
 	}
 }
 
 
-void
-glut_setup(int argc, char **argv)
+void glut_setup(int argc, char **argv)
 {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH);
@@ -136,8 +162,7 @@ glut_setup(int argc, char **argv)
 	}
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	vec3 eye = { 0, 0, -5 };
 	vec3 obj = { 0, 0, 0 };
