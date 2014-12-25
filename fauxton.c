@@ -143,7 +143,6 @@ void keyboard_key(unsigned char key, int x, int y)
 	}
 }
 
-
 void glut_setup(int argc, char **argv)
 {
 	glutInit(&argc, argv);
