@@ -18,10 +18,10 @@
 
 static GLenum cube_axes[] = {
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-	GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-	GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+	GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+	GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
 };
 
@@ -46,7 +46,6 @@ void free_GLvarray(struct GLvarray *v)
 		return;
 	if (v->buf != NULL)
 		free_GLbuffer(v->buf);
-	free(v);
 }
 
 struct GLbuffer *create_GLbuffer(GLsizei s, GLuint n)
@@ -76,7 +75,52 @@ void free_GLbuffer(struct GLbuffer *b)
 
 	if (b == NULL)
 		return;
-	free(b);
+}
+
+struct GLframebuffer *create_GLframebuffer(GLuint w, GLuint h, GLuint usedepth)
+{
+	struct GLframebuffer *f;
+
+	if ((f = malloc(sizeof(struct GLframebuffer))) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	f->w = w;
+	f->h = h;
+	f->hasrb = 0;
+	f->rbid = 0;
+
+	glGenFramebuffers(1, &f->id);
+	glBindFramebuffer(GL_FRAMEBUFFER, f->id);
+
+	if (!usedepth)
+		return NULL;
+
+	f->hasrb = 1;
+
+	glGenRenderbuffers(1, &f->rbid);
+	glBindRenderbuffer(GL_RENDERBUFFER, f->rbid);
+
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, f->w, f->h);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+				  GL_RENDERBUFFER, f->rbid);
+
+	return f;
+}
+
+void rendertocube_GLframebuffer(struct GLtexture *t, GLenum face)
+{
+	GLenum tmp;
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, face, GL_COLOR_ATTACHMENT0,
+			       t->id, 0);
+
+	tmp = GL_COLOR_ATTACHMENT0;
+	glDrawBuffers(1, &tmp);
+}
+
+void free_GLframebuffer(struct GLframebuffer *f)
+{
+	errx(1, "free_GLframebuffer does not free in OpenGL");
 }
 
 struct GLprogram *create_GLprogram()
@@ -119,7 +163,6 @@ void link_GLprogram(struct GLprogram *p)
 void free_GLprogram(struct GLprogram *p)
 {
 	glDeleteProgram(p->id);
-	free(p);
 }
 
 struct GLshader *create_GLshader(const char *sfile, GLenum type)
@@ -194,10 +237,9 @@ void free_GLshader(struct GLshader *s)
 	if (s->path)
 		free(s->path);
 	glDeleteShader(s->id);
-	free(s);
 }
 
-struct GLtexture * create_GLtexture(GLuint w, GLuint h)
+struct GLtexture *create_GLtexture(GLuint w, GLuint h)
 {
 	struct GLtexture *t;
 
@@ -215,10 +257,11 @@ void loadtgacube_GLtexture(struct GLtexture *t, char *fpaths[6])
 {
 	tTGA ttga[6];
 	GLenum mode;
+	int i;
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, t->id);
 
-	for (int i = 0; i < ARRAY_SIZE(cube_axes); i++) {
+	for (i = 0; i < ARRAY_SIZE(cube_axes); i++) {
 		load_TGA(ttga + i, fpaths[i]);
 		mode = ttga[i].alpha ? GL_RGBA : GL_RGB;
 		glTexImage2D(cube_axes[i], 0, mode, t->w, t->h,
@@ -229,31 +272,27 @@ void loadtgacube_GLtexture(struct GLtexture *t, char *fpaths[6])
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	for (i = 0; i < 6; i++)
+		free_TGA(ttga + i);
 }
 
-/*
-void xpm_GLtexture(struct GLtexture *t, char *fn)
+void framebuffercube_GLtexture(struct GLtexture *t)
 {
-	FILE *f;
-	unsigned char *d;
-	unsigned long len;
+	int i;
 
-	f = fopen(fn, "rb");
-	if (f == NULL)
-		goto failure;
+	glBindTexture(GL_TEXTURE_CUBE_MAP, t->id);
 
-	if (fseek(f, 0, SEEK_END))
-		goto failure;
-	len = ftell(f);
-	if (fseek(f, 0, SEEK_SET))
-		goto failure;
+	for (i = 0; i < ARRAY_SIZE(cube_axes); i++) {
+		glTexImage2D(cube_axes[i], 0, GL_RGB, t->w, t->h,
+			     0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	}
 
-	if ((d = malloc(len)) == NULL)
-		errx(1, __FILE__ ": malloc");
-	if (fread(d, f, 1, len) != len)
-		goto failure;
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
-*/
 
 /*
 void png_GLtexture(struct GLtexture *t, char *fn)
@@ -387,7 +426,6 @@ void free_GLunibuf(struct GLunibuf *u)
 {
 	free_GLbuffer(u->buf);
 	free(u->unis);
-	free(u);
 }
 
 void print_program_log(GLuint prog)

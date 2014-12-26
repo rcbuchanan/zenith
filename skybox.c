@@ -26,19 +26,19 @@ static struct GLtexture *tdata2 = NULL;
 
 static char *cube_tga[6] = {
 	"skypics/posx.tga",
-	"skypics/negy.tga",
-	"skypics/posz.tga",
 	"skypics/negx.tga",
+	"skypics/negy.tga",
 	"skypics/posy.tga",
+	"skypics/posz.tga",
 	"skypics/negz.tga"
 };
 
 static char *cube2_tga[6] = {
 	"powerpics/posx.tga",
-	"powerpics/negy.tga",
-	"powerpics/posz.tga",
 	"powerpics/negx.tga",
+	"powerpics/negy.tga",
 	"powerpics/posy.tga",
+	"powerpics/posz.tga",
 	"powerpics/negz.tga"
 };
 

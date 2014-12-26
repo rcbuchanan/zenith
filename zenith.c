@@ -93,7 +93,7 @@ void spaceball_button(int button, int state)
 
 void keyboard_key(unsigned char key, int x, int y)
 {
-	GLfloat d = 0.1;
+	GLfloat d = 3.1415925f / 8.f;
 
 	/* X right to left */
 	/* Y down to up */
