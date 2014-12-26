@@ -99,9 +99,9 @@ static struct polyhedron ico_polyhedron = {
 };
 
 
-static struct GLprogram *line_prog;
-static struct GLprogram *shade_prog;
-static struct watched_program *shwatch;
+static struct GLprogram line_prog;
+static struct GLprogram shade_prog;
+static struct watched_program shwatch;
 
 
 static void create_programs();
@@ -115,21 +115,28 @@ void create_programs()
 	struct GLshader *line;
 	struct GLshader *shade;
 
-	vtx = create_GLshader("./s.vert", GL_VERTEX_SHADER);
-	line = create_GLshader("./line.frag", GL_FRAGMENT_SHADER);
-	shade = create_GLshader("./shade.frag", GL_FRAGMENT_SHADER);
+	if ((vtx = malloc (sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
+	if ((line = malloc (sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
+	if ((shade = malloc (sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
 
-	line_prog = create_GLprogram();
-	addshader_GLprogram(line_prog, vtx);
-	addshader_GLprogram(line_prog, line);
-	link_GLprogram(line_prog);
+	create_GLshader(vtx, "./s.vert", GL_VERTEX_SHADER);
+	create_GLshader(line, "./line.frag", GL_FRAGMENT_SHADER);
+	create_GLshader(shade, "./shade.frag", GL_FRAGMENT_SHADER);
 
-	shade_prog = create_GLprogram();
-	addshader_GLprogram(shade_prog, vtx);
-	addshader_GLprogram(shade_prog, shade);
-	link_GLprogram(shade_prog);
+	create_GLprogram(&line_prog);
+	addshader_GLprogram(&line_prog, vtx);
+	addshader_GLprogram(&line_prog, line);
+	link_GLprogram(&line_prog);
 
-	shwatch = create_watched_program(shade_prog);
+	create_GLprogram(&shade_prog);
+	addshader_GLprogram(&shade_prog, vtx);
+	addshader_GLprogram(&shade_prog, shade);
+	link_GLprogram(&shade_prog);
+
+	create_watched_program(&shwatch, &shade_prog);
 	if (shwatch == NULL)
 		errx(1, __FILE__ ": problem watching file");
 }
