@@ -107,11 +107,15 @@ struct GLframebuffer *create_GLframebuffer(GLuint w, GLuint h, GLuint usedepth)
 	return f;
 }
 
-void rendertocube_GLframebuffer(struct GLtexture *t, GLenum face)
+void rendertocube_GLframebuffer(struct GLframebuffer *f, struct GLtexture *t,
+				GLenum face)
 {
 	GLenum tmp;
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, face, GL_COLOR_ATTACHMENT0,
+	glBindFramebuffer(GL_FRAMEBUFFER, f->id);
+	glViewport(0, 0, t->w, t->h);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face,
 			       t->id, 0);
 
 	tmp = GL_COLOR_ATTACHMENT0;

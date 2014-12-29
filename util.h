@@ -61,7 +61,8 @@ void bindonce_GLbuffer(struct GLbuffer *, GLenum, void *);
 void free_GLbuffer(struct GLbuffer *);
 
 struct GLframebuffer *create_GLframebuffer(GLuint, GLuint, GLuint);
-void rendertocube_GLframebuffer(struct GLtexture *, GLenum);
+void rendertocube_GLframebuffer(struct GLframebuffer *, struct GLtexture *,
+				GLenum);
 void free_GLframebuffer(struct GLframebuffer *);
 
 struct GLshader *create_GLshader(const char *, GLenum);

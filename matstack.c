@@ -121,6 +121,17 @@ static GLfloat *matstack_collapse(struct matstack *ms)
 	return NULL;
 }
 
+static void matstack_print(struct matstack *ms)
+{
+	int i, j;
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++)
+			printf("%f ", ms->cache[ms->i][i][j]);
+		printf("\n");
+	}
+}
+
 
 GLfloat *modelview_collapse()
 {
@@ -157,6 +168,12 @@ void modelview_rotate(GLfloat x, GLfloat y, GLfloat z, GLfloat angle)
 	matstack_rotate(&mvstack, x, y, z, angle);
 }
 
+void modelview_print()
+{
+	matstack_print(&mvstack);
+}
+
+
 GLfloat *projection_collapse()
 {
 	return matstack_collapse(&prostack);
@@ -181,6 +198,11 @@ void
 projection_set_perspective(GLfloat fov, GLfloat aspect, GLfloat n, GLfloat f)
 {
 	matstack_set_perspective(&prostack, fov, aspect, n, f);
+}
+
+void projection_print()
+{
+	matstack_print(&prostack);
 }
 
 GLfloat *projection_modelview_collapse()

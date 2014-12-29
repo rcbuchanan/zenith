@@ -36,22 +36,29 @@ int sb_buttons[SB_BUTTONS_COUNT];
 struct landscape *landscape;
 struct view *view;
 
+struct GLtexture *envmap;
+struct GLframebuffer *envfb;
+
 
 void display()
 {
 	static GLfloat t;
 
-	//glClearColor(1.f, 1.f, 1.f, 1.f);
+	glClearColor(1.f, 1.f, 1.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	view_update(view);
-	modelview_translate(view->eye[0], -view->eye[1], -view->eye[2]);
-	axis_draw();
+	//axis_draw();
 
 	modelview_pushident();
-	//modelview_rotate(0, 1, 0, (t += 0.001));
-	//landscape_draw(landscape);
+	modelview_rotate(0, 1, 0, (t += 0.003));
 	skybox_draw();
+	axis_draw();
+
+	//rendertocube_GLframebuffer(envfb, envmap,
+	//GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+	//axis_draw(); glFlush();
+	landscape_draw(landscape);
 
 	modelview_pop();
 
@@ -66,7 +73,7 @@ void reshape(int w, int h)
 
 	winW = w;
 	winH = h;
-	projection_set_perspective(90, (w * 1.f) / h, 1, 40);
+	projection_set_perspective(90, w * 1.f / h, 1, 100);
 }
 
 void spaceball_motion(int x, int y, int z)
@@ -141,6 +148,9 @@ void keyboard_key(unsigned char key, int x, int y)
 		  view_rotate(view, -1, 0, 0, d);
 		  break;
 	}
+
+	projection_print();
+	printf("\n");
 }
 
 void glut_setup(int argc, char **argv)
@@ -176,6 +186,12 @@ int main(int argc, char **argv)
 	view = view_create(eye, obj, up);
 
 	landscape = landscape_create();
+
+	//envmap = create_GLtexture(512, 512);
+	//framebuffercube_GLtexture(envmap);
+	//envfb = create_GLframebuffer(512, 512, 1);
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
 	glutSpaceballMotionFunc(spaceball_motion);
 	glutSpaceballRotateFunc(spaceball_rotate);

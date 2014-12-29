@@ -52,6 +52,7 @@ static GLfloat cube_vtx[8 * 3] = {
 	-1.000000,  1.000000,  1.000000,
 	-1.000000,  1.000000, -1.000000
 };
+
 static GLuint cube_faces[12 * 3] = {
 	0, 1, 2,
 	4, 7, 6,
@@ -67,6 +68,8 @@ static GLuint cube_faces[12 * 3] = {
 	2, 7, 3,
 	4, 3, 7,
 };
+
+static struct watched_program *pwatch;
 
 
 static void skybox_init()
@@ -96,12 +99,18 @@ static void skybox_init()
 	tdata2 = create_GLtexture(1024, 1024);
 	loadtgacube_GLtexture(tdata2, cube2_tga);
 
+	pwatch = create_watched_program(vprog);
+	if (pwatch == NULL)
+		errx(1, __FILE__ ": problem watching file");
 }
 
+extern struct view *view;
 void skybox_draw()
 {
 	if (vprog == NULL)
 		skybox_init();
+
+	update_program(pwatch);
 
 	glBindVertexArray(vdata->id);
 	glBindBuffer(GL_ARRAY_BUFFER, vdata->buf->id);
@@ -112,18 +121,22 @@ void skybox_draw()
 			      GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
 
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE);
 	//glFrontFace(GL_CCW);
-	glCullFace(GL_FRONT);
+	//glCullFace(GL_FRONT);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
 	glUseProgram(vprog->id);
-	glUniformMatrix4fv(0, 1, GL_TRUE,
-			   (float *) projection_modelview_collapse());
-	glUniform1i(1, 0);
-	glUniform1i(2, 1);
+	glUniformMatrix4fv(0, 1, GL_FALSE,
+			   (float *) modelview_collapse());
+	glUniformMatrix4fv(1, 1, GL_FALSE,
+			   (float *) projection_collapse());
+	glUniform3f(2, view->eye[0], view->eye[1], view->eye[2]);
+	glUniform1i(3, 0);
+	glUniform1i(4, 1);
 
-	glDrawElements(GL_TRIANGLES, fdata->n, GL_UNSIGNED_INT, 0);
+	//glDrawElements(GL_TRIANGLES, fdata->n, GL_UNSIGNED_INT, 0);
 }

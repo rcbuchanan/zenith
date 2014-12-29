@@ -67,9 +67,12 @@ void axis_draw()
 	glDepthFunc(GL_LESS);
 
 	glUseProgram(vprog->id);
-	glUniformMatrix4fv(0, 1, GL_TRUE,
-			   (float *) projection_modelview_collapse());
-
+	glUniformMatrix4fv(glGetUniformLocation(vprog->id, "mvmat"),
+			   1, GL_FALSE,
+			   (float *) modelview_collapse());
+	glUniformMatrix4fv(glGetUniformLocation(vprog->id, "promat"),
+			   1, GL_FALSE,
+			   (float *) projection_collapse());
 	glLineWidth(4);
 	glDrawArrays(GL_LINES, 0, vdata->buf->n);
 }

@@ -3,6 +3,12 @@
 in vec3 fpos;
 
 uniform	mat4 mvmat;
+uniform mat4 promat;
+
+uniform vec3 eyepos;
+uniform vec3 center;
+uniform vec3 up;
+
 uniform samplerCube s1;
 uniform samplerCube s2;
 

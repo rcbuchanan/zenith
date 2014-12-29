@@ -102,6 +102,7 @@ static struct polyhedron ico_polyhedron = {
 static struct GLprogram *line_prog;
 static struct GLprogram *shade_prog;
 static struct watched_program *shwatch;
+static struct watched_program *shwatch2;
 
 
 static void create_programs();
@@ -130,6 +131,9 @@ void create_programs()
 	link_GLprogram(shade_prog);
 
 	shwatch = create_watched_program(shade_prog);
+	if (shwatch == NULL)
+		errx(1, __FILE__ ": problem watching file");
+	shwatch2 = create_watched_program(line_prog);
 	if (shwatch == NULL)
 		errx(1, __FILE__ ": problem watching file");
 }
@@ -192,10 +196,9 @@ struct landscape *landscape_create()
 
 void landscape_draw(struct landscape *l)
 {
-
-	static GLfloat t = 0.0;
-
+	static float t = 0;
 	update_program(shwatch);
+	update_program(shwatch2);
 
 	glBindVertexArray(l->vtx->id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
@@ -216,9 +219,12 @@ void landscape_draw(struct landscape *l)
 	glDepthFunc(GL_LESS);
 
 	glUseProgram(line_prog->id);
-	glUniformMatrix4fv(0, 1, GL_TRUE,
-			   (float *) projection_modelview_collapse());
-	glUniform1f(1, t);
+	glUniformMatrix4fv(0, 1, GL_FALSE,
+			   (float *) modelview_collapse());
+	glUniformMatrix4fv(1, 1, GL_FALSE,
+			   (float *) projection_collapse());
+	glUniform1f(2, t += 0.001);
+	glUniform1f(3, 0);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(2);
@@ -227,9 +233,12 @@ void landscape_draw(struct landscape *l)
 	glCullFace(GL_BACK);
 
 	glUseProgram(shade_prog->id);
-	glUniformMatrix4fv(0, 1, GL_TRUE,
-			   (float *) projection_modelview_collapse());
-	glUniform1f(1, t);
+	glUniformMatrix4fv(0, 1, GL_FALSE,
+			   (float *) modelview_collapse());
+	glUniformMatrix4fv(1, 1, GL_FALSE,
+			   (float *) projection_collapse());
+	glUniform1f(2, t);
+	glUniform1f(3, 0);
 
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -237,8 +246,6 @@ void landscape_draw(struct landscape *l)
 
 	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
 	glDisable(GL_POLYGON_OFFSET_FILL);
-
-	t += 0.1;
 }
 
 static void
