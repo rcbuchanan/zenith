@@ -37,7 +37,7 @@ struct landscape *landscape;
 struct view *view;
 
 struct GLtexture *envmap;
-struct GLframebuffer *envfb;
+struct GLframebuffer *envfb[6];
 
 
 void display()
@@ -50,17 +50,18 @@ void display()
 	view_update(view);
 	//axis_draw();
 
+	skybox_draw();
 	modelview_pushident();
 	modelview_rotate(0, 1, 0, (t += 0.003));
-	skybox_draw();
 	axis_draw();
+	landscape_draw(landscape);
+	modelview_pop();
 
 	//rendertocube_GLframebuffer(envfb, envmap,
 	//GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 	//axis_draw(); glFlush();
-	landscape_draw(landscape);
 
-	modelview_pop();
+
 
 	glFlush();
 	//glutSwapBuffers();
@@ -73,7 +74,7 @@ void reshape(int w, int h)
 
 	winW = w;
 	winH = h;
-	projection_set_perspective(90, w * 1.f / h, 1, 100);
+	projection_set_perspective(90, w * 1.f / h, 0.01, 100);
 }
 
 void spaceball_motion(int x, int y, int z)
@@ -173,6 +174,8 @@ void glut_setup(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	int i;
+
 	vec3 eye = { 0, 0, -5 };
 	vec3 obj = { 0, 0, 0 };
 	vec3 up = { 0, 1, 0 };
@@ -187,10 +190,12 @@ int main(int argc, char **argv)
 
 	landscape = landscape_create();
 
-	//envmap = create_GLtexture(512, 512);
-	//framebuffercube_GLtexture(envmap);
-	//envfb = create_GLframebuffer(512, 512, 1);
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	envmap = create_GLtexture(512, 512);
+	framebuffercube_GLtexture(envmap);
+
+	for (i = 0; i < 6; i++)
+		envfb[i] = create_GLframebuffer(512, 512, 1);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 	glutSpaceballMotionFunc(spaceball_motion);

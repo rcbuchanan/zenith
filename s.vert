@@ -23,7 +23,8 @@ uniform samplerCube s1;
 
 
 void main() {
-	gl_Position = promat * (mvmat * vec4(pos * abs(sin(pos.x * t)), 1));
+	//gl_Position = promat * (mvmat * vec4(pos * abs(sin(pos.x * t)), 1));
+	gl_Position = promat * (mvmat * vec4(pos, 1));
 
 	vec4 tmp = vec4(norm, 1);
 	fnorm = tmp.xyz;

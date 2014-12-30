@@ -138,5 +138,5 @@ void skybox_draw()
 	glUniform1i(3, 0);
 	glUniform1i(4, 1);
 
-	//glDrawElements(GL_TRIANGLES, fdata->n, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, fdata->n, GL_UNSIGNED_INT, 0);
 }

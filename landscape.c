@@ -211,7 +211,7 @@ void landscape_draw(struct landscape *l)
 			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	//glFrontFace(GL_CCW);
 	glCullFace(GL_FRONT);
 
@@ -227,7 +227,7 @@ void landscape_draw(struct landscape *l)
 	glUniform1f(3, 0);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glLineWidth(2);
+	glLineWidth(1);
 	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
 
 	glCullFace(GL_BACK);
@@ -288,6 +288,9 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
 	GLuint i;
 	GLuint j;
 
+	GLfloat area;
+	vec3 tmp;
+
 	nhe = in->nf * 3 / 2;
 	nhn = in->nf;
 
@@ -317,14 +320,21 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
 		errx(1, __FILE__ ": malloc");
 
 	// copy original verticies (normalized)
+	//for (i = 0; i < in->nv; i++)
+	//	vec3_norm(out->v[i], in->v[i]);
 	for (i = 0; i < in->nv; i++)
-		vec3_norm(out->v[i], in->v[i]);
+		vec3_dup(out->v[i], in->v[i]);
+	vec3_sub(tmp, out->v[he[0].v0], out->v[he[0].v1]);
+	area = vec3_len(tmp);
 
 	// create subdivided verticies (normalized)
 	for (i = 0; i < nhe; i++) {
 		he[i].index = nhn + i;
 		vec3_add(out->v[nhn + i], out->v[he[i].v0], out->v[he[i].v1]);
-		vec3_norm(out->v[nhn + i], out->v[nhn + i]);
+		vec3_scale(out->v[nhn + i], out->v[nhn + i], 0.5);
+		//vec3_norm(out->v[nhn + i], out->v[nhn + i]);
+		vec3_scale(out->v[nhn + i], out->v[nhn + i],
+			   1.f + (random() * .4f / RAND_MAX) * area);
 	}
 
 	// create new faces

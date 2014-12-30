@@ -90,7 +90,7 @@ static void matstack_lookat(struct matstack *ms, vec3 eye, vec3 obj, vec3 up)
 static void
 matstack_translate(struct matstack *ms, GLfloat x, GLfloat y, GLfloat z)
 {
-	mat4x4_translate_in_place(ms->d[ms->i], x, -y, -z);
+	mat4x4_translate_in_place(ms->d[ms->i], x, y, z);
 	matstack_update_cache(ms);
 }
 
