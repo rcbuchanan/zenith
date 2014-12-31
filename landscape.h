@@ -1,5 +1,7 @@
+struct landscape {
+	struct GLvarray vtx;
+	struct GLbuffer tri;
+};
 
-struct landscape;
-
-struct landscape *landscape_create();
+void landscape_create(struct landscape *);
 void landscape_draw(struct landscape *);

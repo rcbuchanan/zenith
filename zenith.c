@@ -33,11 +33,11 @@ GLuint winW = 512;
 GLuint winH = 512;
 int sb_buttons[SB_BUTTONS_COUNT];
 
-struct landscape *landscape;
+struct landscape landscape;
 struct view *view;
 
-struct GLtexture *envmap;
-struct GLframebuffer *envfb[6];
+struct GLtexture envmap;
+struct GLframebuffer envfb[6];
 
 
 void display()
@@ -54,14 +54,12 @@ void display()
 	modelview_pushident();
 	modelview_rotate(0, 1, 0, (t += 0.003));
 	axis_draw();
-	landscape_draw(landscape);
+	landscape_draw(&landscape);
 	modelview_pop();
 
 	//rendertocube_GLframebuffer(envfb, envmap,
 	//GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 	//axis_draw(); glFlush();
-
-
 
 	glFlush();
 	//glutSwapBuffers();
@@ -101,57 +99,30 @@ void spaceball_button(int button, int state)
 
 void keyboard_key(unsigned char key, int x, int y)
 {
-	GLfloat d = 3.1415925f / 8.f;
+	GLfloat d = M_PI / 8.f;
 
 	/* X right to left */
 	/* Y down to up */
 	/* Z in to out */
 	switch (key) {
-	  case 'a':
-		  view_translate(view, 0, d, 0);
-		  break;
-	  case 'e':
-		  view_translate(view, 0, -d, 0);
-		  break;
+	case 'a': view_translate(view, 0,  d, 0); break;
+	case 'e': view_translate(view, 0, -d, 0); break;
 
-	  case '.':
-		  view_translate(view, 0, 0, d);
-		  break;
-	  case '\'':
-		  view_translate(view, 0, 0, -d);
-		  break;
+	case '.': view_translate(view, 0, 0,  d); break;
+	case '\'':view_translate(view, 0, 0, -d); break;
 
-	  case ',':
-		  view_translate(view, d, 0, 0);
-		  break;
-	  case 'o':
-		  view_translate(view, -d, 0, 0);
-		  break;
+	case ',': view_translate(view,  d, 0, 0); break;
+	case 'o': view_translate(view, -d, 0, 0); break;
 
-	  case 'A':
-		  view_rotate(view, 0, 1, 0, d);
-		  break;
-	  case 'E':
-		  view_rotate(view, 0, -1, 0, d);
-		  break;
+	case 'A': view_rotate(view, 0,  1, 0, d); break;
+	case 'E': view_rotate(view, 0, -1, 0, d); break;
 
-	  case '>':
-		  view_rotate(view, 0, 0, 1, d);
-		  break;
-	  case '"':
-		  view_rotate(view, 0, 0, -1, d);
-		  break;
+	case '>': view_rotate(view, 0, 0,  1, d); break;
+	case '"': view_rotate(view, 0, 0, -1, d); break;
 
-	  case '<':
-		  view_rotate(view, 1, 0, 0, d);
-		  break;
-	  case 'O':
-		  view_rotate(view, -1, 0, 0, d);
-		  break;
+	case '<': view_rotate(view,  1, 0, 0, d); break;
+	case 'O': view_rotate(view, -1, 0, 0, d); break;
 	}
-
-	projection_print();
-	printf("\n");
 }
 
 void glut_setup(int argc, char **argv)
@@ -176,9 +147,9 @@ int main(int argc, char **argv)
 {
 	int i;
 
-	vec3 eye = { 0, 0, -5 };
-	vec3 obj = { 0, 0, 0 };
-	vec3 up = { 0, 1, 0 };
+	vec3 eye = {0, 0, -5};
+	vec3 obj = {0, 0, 0};
+	vec3 up = {0, 1, 0};
 
 	glut_setup(argc, argv);
 
@@ -188,13 +159,13 @@ int main(int argc, char **argv)
 	modelview_pushident();
 	view = view_create(eye, obj, up);
 
-	landscape = landscape_create();
+	landscape_create(&landscape);
 
-	envmap = create_GLtexture(512, 512);
-	framebuffercube_GLtexture(envmap);
+	create_GLtexture(&envmap, 512, 512);
+	framebuffercube_GLtexture(&envmap);
 
 	for (i = 0; i < 6; i++)
-		envfb[i] = create_GLframebuffer(512, 512, 1);
+		create_GLframebuffer(envfb + i, 512, 512, 1);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 

@@ -10,5 +10,4 @@ uniform	mat4 promat;
 void main()
 {
 	gl_FragColor = vec4(fcol, 1);
-	//gl_FragColor = vec4(1, 1, 1, 1);
 }

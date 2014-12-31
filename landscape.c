@@ -1,4 +1,5 @@
 #include <err.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,8 +30,8 @@ struct hypernode {
 };
 
 struct landscape {
-	struct GLvarray *vtx;
-	struct GLbuffer *tri;
+	struct GLvarray vtx;
+	struct GLbuffer tri;
 };
 
 struct polyhedron {
@@ -40,6 +41,12 @@ struct polyhedron {
 	int nf;
 };
 
+
+static struct GLprogram line_prog;
+static struct GLprogram shade_prog;
+static struct watched_program shwatch;
+static struct watched_program shwatch2;
+static int init_done = 0;
 
 static int match[9][4] = {
 	{0, 1, 0, 2},
@@ -99,110 +106,94 @@ static struct polyhedron ico_polyhedron = {
 };
 
 
-static struct GLprogram *line_prog;
-static struct GLprogram *shade_prog;
-static struct watched_program *shwatch;
-static struct watched_program *shwatch2;
-
-
 static void create_programs();
-static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *);
+static void polyhedron_createsubdivided(struct polyhedron *,
+					struct polyhedron *);
 static void polyhedron_free(struct polyhedron *);
 
 
 void create_programs()
 {
 	struct GLshader *vtx;
-	struct GLshader *line;
-	struct GLshader *shade;
 
-	vtx = create_GLshader("./s.vert", GL_VERTEX_SHADER);
-	line = create_GLshader("./line.frag", GL_FRAGMENT_SHADER);
-	shade = create_GLshader("./shade.frag", GL_FRAGMENT_SHADER);
+	if ((vtx = malloc(sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
+	create_GLshader(vtx, "./s.vert", GL_VERTEX_SHADER);
 
-	line_prog = create_GLprogram();
-	addshader_GLprogram(line_prog, vtx);
-	addshader_GLprogram(line_prog, line);
-	link_GLprogram(line_prog);
+	create_GLprogram(&line_prog);
+	addshader_GLprogram(&line_prog, vtx);
+	addnewshader_GLprogram(&line_prog, "./line.frag", GL_FRAGMENT_SHADER);
+	link_GLprogram(&line_prog);
 
-	shade_prog = create_GLprogram();
-	addshader_GLprogram(shade_prog, vtx);
-	addshader_GLprogram(shade_prog, shade);
-	link_GLprogram(shade_prog);
+	create_GLprogram(&shade_prog);
+	addshader_GLprogram(&shade_prog, vtx);
+	addnewshader_GLprogram(&shade_prog, "./shade.frag", GL_FRAGMENT_SHADER);
+	link_GLprogram(&shade_prog);
 
-	shwatch = create_watched_program(shade_prog);
-	if (shwatch == NULL)
-		errx(1, __FILE__ ": problem watching file");
-	shwatch2 = create_watched_program(line_prog);
-	if (shwatch == NULL)
-		errx(1, __FILE__ ": problem watching file");
+	create_watched_program(&shwatch, &shade_prog);
+	create_watched_program(&shwatch2, &line_prog);
+
+	init_done = 1;
 }
 
-struct landscape *landscape_create()
+void landscape_create(struct landscape *l)
 {
-	struct landscape *l;
-	struct polyhedron *p, *pp;
+	struct polyhedron p, pp;
 	int i;
 	GLfloat(*fp)[6];
 	GLuint(*up)[3];
 
-	if (line_prog == NULL || shade_prog == NULL)
+	if (!init_done)
 		create_programs();
 
-	if ((l = malloc(sizeof(struct landscape))) == NULL)
-		errx(1, __FILE__ ": allocation failed");
-
-	for (p = &ico_polyhedron, i = 0; i < 5; i++) {
-		if ((pp = polyhedron_createsubdivided(p)) == NULL)
-			errx(1, __FILE__ ": failed to create polyhedron");
-		if (p != &ico_polyhedron)
-			free(p);
+	polyhedron_createsubdivided(&p, &ico_polyhedron);
+	for (i = 0; i < 4; i++) {
+		polyhedron_createsubdivided(&pp, &p);
+		polyhedron_free(&p);
 		p = pp;
 	}
 
-	l->vtx = create_GLvarray(sizeof(GLfloat), 6 * p->nv);
-	if ((fp = malloc(l->vtx->buf->size)) == NULL)
+	create_GLvarray(&l->vtx, sizeof(GLfloat), 6 * p.nv);
+	if ((fp = malloc(l->vtx.buf.size)) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	for (i = 0; i < p->nv; i++) {
-		fp[i][0] = p->v[i][0];
-		fp[i][1] = p->v[i][1];
-		fp[i][2] = p->v[i][2];
-		fp[i][3] = p->v[i][0];
-		fp[i][4] = p->v[i][1];
-		fp[i][5] = p->v[i][2];
+	for (i = 0; i < p.nv; i++) {
+		fp[i][0] = p.v[i][0];
+		fp[i][1] = p.v[i][1];
+		fp[i][2] = p.v[i][2];
+		fp[i][3] = p.v[i][0];
+		fp[i][4] = p.v[i][1];
+		fp[i][5] = p.v[i][2];
 	}
 
-	bindonce_GLbuffer(l->vtx->buf, GL_ARRAY_BUFFER, fp);
+	bindonce_GLbuffer(&l->vtx.buf, GL_ARRAY_BUFFER, fp);
 	free(fp);
 
-	l->tri = create_GLbuffer(sizeof(GLuint), 3 * p->nf);
-	if ((up = malloc(l->tri->size)) == NULL)
+	create_GLbuffer(&l->tri, sizeof(GLuint), 3 * p.nf);
+	if ((up = malloc(l->tri.size)) == NULL)
 		errx(1, __FILE__ ": malloc");
 
-	for (i = 0; i < p->nf; i++) {
-		up[i][0] = (GLfloat) p->f[i][0];
-		up[i][1] = (GLfloat) p->f[i][1];
-		up[i][2] = (GLfloat) p->f[i][2];
+	for (i = 0; i < p.nf; i++) {
+		up[i][0] = (GLfloat) p.f[i][0];
+		up[i][1] = (GLfloat) p.f[i][1];
+		up[i][2] = (GLfloat) p.f[i][2];
 	}
 
-	bindonce_GLbuffer(l->tri, GL_ELEMENT_ARRAY_BUFFER, up);
+	bindonce_GLbuffer(&l->tri, GL_ELEMENT_ARRAY_BUFFER, up);
 	free(up);
 
-	polyhedron_free(p);
-
-	return l;
+	polyhedron_free(&p);
 }
 
 void landscape_draw(struct landscape *l)
 {
 	static float t = 0;
-	update_program(shwatch);
-	update_program(shwatch2);
+	update_program(&shwatch);
+	update_program(&shwatch2);
 
-	glBindVertexArray(l->vtx->id);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri->id);
-	glBindBuffer(GL_ARRAY_BUFFER, l->vtx->buf->id);
+	glBindVertexArray(l->vtx.id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, l->tri.id);
+	glBindBuffer(GL_ARRAY_BUFFER, l->vtx.buf.id);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
 			      3 * 2 * sizeof(GLfloat), 0);
@@ -218,7 +209,7 @@ void landscape_draw(struct landscape *l)
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	glUseProgram(line_prog->id);
+	glUseProgram(line_prog.id);
 	glUniformMatrix4fv(0, 1, GL_FALSE,
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
@@ -228,11 +219,11 @@ void landscape_draw(struct landscape *l)
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(1);
-	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, l->tri.n, GL_UNSIGNED_INT, 0);
 
 	glCullFace(GL_BACK);
 
-	glUseProgram(shade_prog->id);
+	glUseProgram(shade_prog.id);
 	glUniformMatrix4fv(0, 1, GL_FALSE,
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
@@ -244,7 +235,7 @@ void landscape_draw(struct landscape *l)
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glPolygonOffset(1.0, 1.0);
 
-	glDrawElements(GL_TRIANGLES, l->tri->n, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, l->tri.n, GL_UNSIGNED_INT, 0);
 	glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
@@ -274,10 +265,9 @@ update_adj(struct hypernode *hna, struct hypernode *hnb, struct hyperedge **hep)
 	}
 }
 
-static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
+static void polyhedron_createsubdivided(struct polyhedron *out,
+					struct polyhedron *in)
 {
-	struct polyhedron *out;
-
 	struct hyperedge *he;
 	struct hypernode *hn;
 	struct hyperedge *hep;
@@ -308,9 +298,6 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
 	for (hep = he, i = 0; i < nhn; i++)
 		for (j = i + 1; j < nhn; j++)
 			update_adj(hn + i, hn + j, &hep);
-
-	if ((out = malloc(sizeof(out[0]))) == NULL)
-		errx(1, __FILE__ ": malloc");
 
 	out->nv = nhn + nhe;
 	out->nf = nhn * 4;
@@ -358,8 +345,6 @@ static struct polyhedron *polyhedron_createsubdivided(struct polyhedron *in)
 
 	free(he);
 	free(hn);
-
-	return out;
 }
 
 static void polyhedron_free(struct polyhedron *p)
@@ -368,5 +353,4 @@ static void polyhedron_free(struct polyhedron *p)
 		free(p->f);
 	if (p->v)
 		free(p->v);
-	free(p);
 }

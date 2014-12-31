@@ -13,9 +13,6 @@
 #include "util.h"
 
 
-#define MAX_SHADERS	10
-
-
 static GLenum cube_axes[] = {
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
@@ -25,42 +22,24 @@ static GLenum cube_axes[] = {
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
 };
 
-struct GLvarray *create_GLvarray(GLsizei s, GLuint n)
+void create_GLvarray(struct GLvarray *v, GLsizei s, GLuint n)
 {
-	struct GLvarray *v;
-
-	if ((v = malloc(sizeof(struct GLvarray))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
-	v->buf = create_GLbuffer(s, n);
+	create_GLbuffer(&v->buf, s, n);
 	glGenVertexArrays(1, &(v->id));
-
-	return v;
 }
 
 void free_GLvarray(struct GLvarray *v)
 {
 	errx(1, "free_GLvarray does not free in openGL!");
-
-	if (v == NULL)
-		return;
-	if (v->buf != NULL)
-		free_GLbuffer(v->buf);
+	free_GLbuffer(&v->buf);
 }
 
-struct GLbuffer *create_GLbuffer(GLsizei s, GLuint n)
+void create_GLbuffer(struct GLbuffer *b, GLsizei s, GLuint n)
 {
-	struct GLbuffer *b;
-
-	if ((b = malloc(sizeof(struct GLbuffer))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
 	b->n = n;
 	b->size = s * n;
 
 	glGenBuffers(1, &(b->id));
-
-	return b;
 }
 
 void bindonce_GLbuffer(struct GLbuffer *b, GLenum type, void *v)
@@ -72,18 +51,11 @@ void bindonce_GLbuffer(struct GLbuffer *b, GLenum type, void *v)
 void free_GLbuffer(struct GLbuffer *b)
 {
 	errx(1, "free_GLbuffer does not free in openGL!");
-
-	if (b == NULL)
-		return;
 }
 
-struct GLframebuffer *create_GLframebuffer(GLuint w, GLuint h, GLuint usedepth)
+void create_GLframebuffer(struct GLframebuffer *f, GLuint w, GLuint h,
+			  GLuint usedepth)
 {
-	struct GLframebuffer *f;
-
-	if ((f = malloc(sizeof(struct GLframebuffer))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
 	f->w = w;
 	f->h = h;
 	f->hasrb = 0;
@@ -93,7 +65,7 @@ struct GLframebuffer *create_GLframebuffer(GLuint w, GLuint h, GLuint usedepth)
 	glBindFramebuffer(GL_FRAMEBUFFER, f->id);
 
 	if (!usedepth)
-		return NULL;
+		return;
 
 	f->hasrb = 1;
 
@@ -103,8 +75,6 @@ struct GLframebuffer *create_GLframebuffer(GLuint w, GLuint h, GLuint usedepth)
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, f->w, f->h);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 				  GL_RENDERBUFFER, f->rbid);
-
-	return f;
 }
 
 void rendertocube_GLframebuffer(struct GLframebuffer *f, struct GLtexture *t,
@@ -127,20 +97,10 @@ void free_GLframebuffer(struct GLframebuffer *f)
 	errx(1, "free_GLframebuffer does not free in OpenGL");
 }
 
-struct GLprogram *create_GLprogram()
+void create_GLprogram(struct GLprogram *p)
 {
-	struct GLprogram *p;
-
-	if ((p = malloc(sizeof(struct GLprogram))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
-	if ((p->ss = malloc(sizeof(struct GLshader *) * MAX_SHADERS)) == NULL)
-		errx(1, __FILE__ ": malloc");
-
 	p->ns = 0;
 	p->id = glCreateProgram();
-
-	return p;
 }
 
 void addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
@@ -150,6 +110,16 @@ void addshader_GLprogram(struct GLprogram *p, struct GLshader *s)
 	p->ss[p->ns++] = s;
 }
 
+void addnewshader_GLprogram(struct GLprogram *p, const char *fn, GLenum type)
+{
+	struct GLshader *s;
+
+	if ((s = malloc(sizeof (struct GLshader))) == NULL)
+		errx(1, __FILE__ ": malloc");
+
+	create_GLshader(s, fn, type);
+	p->ss[p->ns++] = s;
+}
 
 void link_GLprogram(struct GLprogram *p)
 {
@@ -169,13 +139,8 @@ void free_GLprogram(struct GLprogram *p)
 	glDeleteProgram(p->id);
 }
 
-struct GLshader *create_GLshader(const char *sfile, GLenum type)
+void create_GLshader(struct GLshader *s, const char *sfile, GLenum type)
 {
-	struct GLshader *s;
-
-	if ((s = malloc(sizeof(struct GLshader))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
 	s->type = type;
 	if ((s->path = malloc(strlen(sfile) + 1)) == NULL)
 		errx(1, __FILE__ ": malloc");
@@ -187,11 +152,9 @@ struct GLshader *create_GLshader(const char *sfile, GLenum type)
 
 	if (load_GLshader(s))
 		errx(1, __FILE__ ": failed to compile shader");
-
-	return s;
 }
 
-GLuint load_GLshader(struct GLshader * s)
+GLuint load_GLshader(struct GLshader *s)
 {
 	GLchar *buf;
 	FILE *f;
@@ -243,18 +206,11 @@ void free_GLshader(struct GLshader *s)
 	glDeleteShader(s->id);
 }
 
-struct GLtexture *create_GLtexture(GLuint w, GLuint h)
+void create_GLtexture(struct GLtexture *t, GLuint w, GLuint h)
 {
-	struct GLtexture *t;
-
-	if ((t = malloc(sizeof(struct GLtexture))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
 	t->w = w;
 	t->h = h;
 	glGenTextures(1, &t->id);
-
-	return t;
 }
 
 void loadtgacube_GLtexture(struct GLtexture *t, char *fpaths[6])
@@ -357,79 +313,9 @@ void png_GLtexture(struct GLtexture *t, char *fn)
 }
 */
 
-struct GLunibuf *create_GLunibuf(struct GLprogram *p, const char *name)
+void free_GLtexture(struct GLtexture *t)
 {
-	struct GLunibuf *u = NULL;
-	GLsizei bs;
-	GLuint *is;
-	int i;
-
-	if ((u = malloc(sizeof(struct GLunibuf))) == NULL)
-		errx(1, __FILE__ ": malloc");
-
-	u->id = glGetUniformBlockIndex(p->id, name);
-	if (u->id == GL_INVALID_INDEX)
-		goto failed;
-
-	glGetActiveUniformBlockiv(p->id,
-				  u->id, GL_UNIFORM_BLOCK_DATA_SIZE, &bs);
-	if (bs == 0)
-		goto failed;
-
-	u->buf = create_GLbuffer(bs, 1);
-
-	glGetActiveUniformBlockiv(p->id,
-				  u->id,
-				  GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS,
-				  (GLint *) & u->nuni);
-
-	if (u->nuni != 0) {
-		if ((u->unis = malloc(sizeof(struct GLuni) * u->nuni)) == NULL)
-			goto failed;
-
-		if ((is = malloc(sizeof(GLint) * u->nuni)) == NULL)
-			goto failed;
-
-		glGetActiveUniformBlockiv(p->id,
-					  u->id,
-					  GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES,
-					  (GLint *) is);
-
-		for (i = 0; i < u->nuni; i++) {
-			u->unis[i].id = is[i];
-			glGetActiveUniformsiv(p->id,
-					      1,
-					      (const GLuint *) is + i,
-					      GL_UNIFORM_OFFSET,
-					      (GLint *) & u->unis[i].off);
-			glGetActiveUniformsiv(p->id,
-					      1,
-					      (const GLuint *) is + i,
-					      GL_UNIFORM_SIZE,
-					      (GLint *) & u->unis[i].size);
-			glGetActiveUniformsiv(p->id,
-					      1,
-					      (const GLuint *) is + i,
-					      GL_UNIFORM_TYPE,
-					      (GLint *) & u->unis[i].type);
-		}
-
-		free(is);
-	}
-
-	return u;
-
-      failed:
-	errx(1, __FILE__ ": couldn't create unibuf for %s", name);
-	free_GLprogram(p);
-
-	return NULL;
-}
-
-void free_GLunibuf(struct GLunibuf *u)
-{
-	free_GLbuffer(u->buf);
-	free(u->unis);
+	errx(1, "free_GLtexture does not free in openGL!");
 }
 
 void print_program_log(GLuint prog)

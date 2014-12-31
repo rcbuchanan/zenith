@@ -1,4 +1,5 @@
 #include <err.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,14 +18,17 @@
 #include "view.h"
 
 
-static struct GLvarray *vdata = NULL;
-static struct GLbuffer *fdata = NULL;
-static struct GLprogram *vprog = NULL;
-static struct GLtexture *tdata = NULL;
-static struct GLtexture *tdata2 = NULL;
+static struct GLvarray vdata;
+static struct GLbuffer fdata;
+static struct GLprogram vprog;
+static struct GLtexture tdata;
+static struct GLtexture tdata2;
+static int init_done = 0;
+
+static struct watched_program pwatch;
 
 
-static char *cube_tga[6] = {
+static char *cube_files[6] = {
 	"skypics/posx.tga",
 	"skypics/negx.tga",
 	"skypics/negy.tga",
@@ -33,7 +37,7 @@ static char *cube_tga[6] = {
 	"skypics/negz.tga"
 };
 
-static char *cube2_tga[6] = {
+static char *cube2_files[6] = {
 	"powerpics/posx.tga",
 	"powerpics/negx.tga",
 	"powerpics/negy.tga",
@@ -69,52 +73,44 @@ static GLuint cube_faces[12 * 3] = {
 	4, 3, 7,
 };
 
-static struct watched_program *pwatch;
-
 
 static void skybox_init()
 {
-	struct GLshader *vtx;
-	struct GLshader *line;
+	create_GLprogram(&vprog);
+	addnewshader_GLprogram(&vprog, "./skybox.vert", GL_VERTEX_SHADER);
+	addnewshader_GLprogram(&vprog, "./skybox.frag", GL_FRAGMENT_SHADER);
+	link_GLprogram(&vprog);
 
-	vtx = create_GLshader("./skybox.vert", GL_VERTEX_SHADER);
-	line = create_GLshader("./skybox.frag", GL_FRAGMENT_SHADER);
+	create_GLvarray(&vdata, sizeof(GLfloat), ARRAY_SIZE(cube_vtx));
+	bindonce_GLbuffer(&vdata.buf, GL_ARRAY_BUFFER, cube_vtx);
 
-	vprog = create_GLprogram();
-	addshader_GLprogram(vprog, vtx);
-	addshader_GLprogram(vprog, line);
-	link_GLprogram(vprog);
-
-	vdata = create_GLvarray(sizeof(GLfloat), ARRAY_SIZE(cube_vtx));
-	bindonce_GLbuffer(vdata->buf, GL_ARRAY_BUFFER, cube_vtx);
-
-	fdata = create_GLbuffer(sizeof(GLfloat), ARRAY_SIZE(cube_faces));
-	bindonce_GLbuffer(fdata, GL_ELEMENT_ARRAY_BUFFER, cube_faces);
+	create_GLbuffer(&fdata, sizeof(GLfloat), ARRAY_SIZE(cube_faces));
+	bindonce_GLbuffer(&fdata, GL_ELEMENT_ARRAY_BUFFER, cube_faces);
 
 	glActiveTexture(GL_TEXTURE0);
-	tdata = create_GLtexture(2048, 2048);
-	loadtgacube_GLtexture(tdata, cube_tga);
+	create_GLtexture(&tdata, 2048, 2048);
+	loadtgacube_GLtexture(&tdata, cube_files);
 
 	glActiveTexture(GL_TEXTURE1);
-	tdata2 = create_GLtexture(1024, 1024);
-	loadtgacube_GLtexture(tdata2, cube2_tga);
+	create_GLtexture(&tdata2, 1024, 1024);
+	loadtgacube_GLtexture(&tdata2, cube2_files);
 
-	pwatch = create_watched_program(vprog);
-	if (pwatch == NULL)
-		errx(1, __FILE__ ": problem watching file");
+	create_watched_program(&pwatch, &vprog);
+
+	init_done = 1;
 }
 
 extern struct view *view;
 void skybox_draw()
 {
-	if (vprog == NULL)
+	if (!init_done)
 		skybox_init();
 
-	update_program(pwatch);
+	update_program(&pwatch);
 
-	glBindVertexArray(vdata->id);
-	glBindBuffer(GL_ARRAY_BUFFER, vdata->buf->id);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fdata->id);
+	glBindVertexArray(vdata.id);
+	glBindBuffer(GL_ARRAY_BUFFER, vdata.buf.id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fdata.id);
 
 	glVertexAttribPointer(0,
 			      3,
@@ -129,7 +125,7 @@ void skybox_draw()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	glUseProgram(vprog->id);
+	glUseProgram(vprog.id);
 	glUniformMatrix4fv(0, 1, GL_FALSE,
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
@@ -138,5 +134,5 @@ void skybox_draw()
 	glUniform1i(3, 0);
 	glUniform1i(4, 1);
 
-	glDrawElements(GL_TRIANGLES, fdata->n, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, fdata.n, GL_UNSIGNED_INT, 0);
 }

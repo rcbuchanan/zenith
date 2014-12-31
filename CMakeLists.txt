@@ -23,6 +23,7 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 add_executable(zenith
 	axis.c
+	bspline.c
 	filewatcher.c
 	landscape.c
 	matstack.c

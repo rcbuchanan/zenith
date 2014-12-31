@@ -1,4 +1,5 @@
 #include <err.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,8 +18,10 @@
 #include "view.h"
 
 
-static struct GLvarray *vdata = NULL;
-static struct GLprogram *vprog = NULL;
+static struct GLvarray vdata;
+static struct GLprogram vprog;
+static int init_done = 0;
+
 
 static GLfloat axis_vtx[] = {
 	0.f, 0.f, 0.f, 1.f, 0.f, 0.f,	// red X
@@ -34,28 +37,24 @@ static GLfloat axis_vtx[] = {
 
 static void axis_init()
 {
-	struct GLshader *vtx;
-	struct GLshader *line;
+	create_GLprogram(&vprog);
+	addnewshader_GLprogram(&vprog, "./axis.vert", GL_VERTEX_SHADER);
+	addnewshader_GLprogram(&vprog, "./axis.frag", GL_FRAGMENT_SHADER);
+	link_GLprogram(&vprog);
 
-	vtx = create_GLshader("./axis.vert", GL_VERTEX_SHADER);
-	line = create_GLshader("./axis.frag", GL_FRAGMENT_SHADER);
+	create_GLvarray(&vdata, sizeof(GLfloat), 36);
+	bindonce_GLbuffer(&vdata.buf, GL_ARRAY_BUFFER, axis_vtx);
 
-	vprog = create_GLprogram();
-	addshader_GLprogram(vprog, vtx);
-	addshader_GLprogram(vprog, line);
-	link_GLprogram(vprog);
-
-	vdata = create_GLvarray(sizeof(GLfloat), 36);
-	bindonce_GLbuffer(vdata->buf, GL_ARRAY_BUFFER, axis_vtx);
+	init_done = 1;
 }
 
 void axis_draw()
 {
-	if (vprog == NULL)
+	if (!init_done)
 		axis_init();
 
-	glBindVertexArray(vdata->id);
-	glBindBuffer(GL_ARRAY_BUFFER, vdata->buf->id);
+	glBindVertexArray(vdata.id);
+	glBindBuffer(GL_ARRAY_BUFFER, vdata.buf.id);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
@@ -66,13 +65,13 @@ void axis_draw()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	glUseProgram(vprog->id);
-	glUniformMatrix4fv(glGetUniformLocation(vprog->id, "mvmat"),
+	glUseProgram(vprog.id);
+	glUniformMatrix4fv(glGetUniformLocation(vprog.id, "mvmat"),
 			   1, GL_FALSE,
 			   (float *) modelview_collapse());
-	glUniformMatrix4fv(glGetUniformLocation(vprog->id, "promat"),
+	glUniformMatrix4fv(glGetUniformLocation(vprog.id, "promat"),
 			   1, GL_FALSE,
 			   (float *) projection_collapse());
 	glLineWidth(4);
-	glDrawArrays(GL_LINES, 0, vdata->buf->n);
+	glDrawArrays(GL_LINES, 0, vdata.buf.n);
 }
