@@ -37,7 +37,7 @@ struct landscape {
 struct polyhedron {
 	GLfloat(*v)[3];
 	int nv;
-	 GLuint(*f)[3];
+	GLuint(*f)[3];
 	int nf;
 };
 
@@ -202,7 +202,7 @@ void landscape_draw(struct landscape *l)
 			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
-	//glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	//glFrontFace(GL_CCW);
 	glCullFace(GL_FRONT);
 

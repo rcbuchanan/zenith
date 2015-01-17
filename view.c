@@ -15,18 +15,11 @@
 #include "view.h"
 
 
-struct view *view_create(vec3 eye, vec3 obj, vec3 up)
+void view_create(struct view *v, vec3 eye, vec3 obj, vec3 up)
 {
-	struct view *v;
-
-	if ((v = malloc(sizeof(struct view))) == NULL)
-		errx(1, "malloc");
-
 	vec3_dup(v->eye, eye);
 	vec3_dup(v->obj, obj);
 	vec3_dup(v->up, up);
-
-	return v;
 }
 
 void view_rotate(struct view *v, GLfloat x, GLfloat y, GLfloat z, GLfloat a)

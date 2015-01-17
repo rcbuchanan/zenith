@@ -34,7 +34,7 @@ GLuint winH = 512;
 int sb_buttons[SB_BUTTONS_COUNT];
 
 struct landscape landscape;
-struct view *view;
+struct view view;
 
 struct GLtexture envmap;
 struct GLframebuffer envfb[6];
@@ -47,7 +47,7 @@ void display()
 	glClearColor(1.f, 1.f, 1.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	view_update(view);
+	view_update(&view);
 	//axis_draw();
 
 	skybox_draw();
@@ -79,16 +79,17 @@ void spaceball_motion(int x, int y, int z)
 {
 	GLfloat k = 0.0001;
 
-	//printf("t: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
-	modelview_translate(x * k, y * k, z * k);
+	printf("t: %04.04f %04.04f %04.04f\n", x * k, y * k, z * k);
+	view_translate(&view, x * k, y * k, z * k);
+
 }
 
 void spaceball_rotate(int rx, int ry, int rz)
 {
-	GLfloat k = 0.01;
+	GLfloat k = 0.005;
 
 	printf("r: %04.04f %04.04f %04.04f\n", rx * 1.f, ry * 1.f, rz * 1.f);
-	modelview_rotate(rx, ry, rz, k);
+	//view_rotate(&view, -rx, ry, rz, k);
 }
 
 void spaceball_button(int button, int state)
@@ -105,23 +106,23 @@ void keyboard_key(unsigned char key, int x, int y)
 	/* Y down to up */
 	/* Z in to out */
 	switch (key) {
-	case 'a': view_translate(view, 0,  d, 0); break;
-	case 'e': view_translate(view, 0, -d, 0); break;
+	case 'a': view_translate(&view, 0,  d, 0); break;
+	case 'e': view_translate(&view, 0, -d, 0); break;
 
-	case '.': view_translate(view, 0, 0,  d); break;
-	case '\'':view_translate(view, 0, 0, -d); break;
+	case '.': view_translate(&view, 0, 0,  d); break;
+	case '\'':view_translate(&view, 0, 0, -d); break;
 
-	case ',': view_translate(view,  d, 0, 0); break;
-	case 'o': view_translate(view, -d, 0, 0); break;
+	case ',': view_translate(&view,  d, 0, 0); break;
+	case 'o': view_translate(&view, -d, 0, 0); break;
 
-	case 'A': view_rotate(view, 0,  1, 0, d); break;
-	case 'E': view_rotate(view, 0, -1, 0, d); break;
+	case 'A': view_rotate(&view, 0,  1, 0, d); break;
+	case 'E': view_rotate(&view, 0, -1, 0, d); break;
 
-	case '>': view_rotate(view, 0, 0,  1, d); break;
-	case '"': view_rotate(view, 0, 0, -1, d); break;
+	case '>': view_rotate(&view, 0, 0,  1, d); break;
+	case '"': view_rotate(&view, 0, 0, -1, d); break;
 
-	case '<': view_rotate(view,  1, 0, 0, d); break;
-	case 'O': view_rotate(view, -1, 0, 0, d); break;
+	case '<': view_rotate(&view,  1, 0, 0, d); break;
+	case 'O': view_rotate(&view, -1, 0, 0, d); break;
 	}
 }
 
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
 
 	projection_pushident();
 	modelview_pushident();
-	view = view_create(eye, obj, up);
+	view_create(&view, eye, obj, up);
 
 	landscape_create(&landscape);
 

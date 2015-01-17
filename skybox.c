@@ -100,7 +100,7 @@ static void skybox_init()
 	init_done = 1;
 }
 
-extern struct view *view;
+extern struct view view;
 void skybox_draw()
 {
 	if (!init_done)
@@ -130,7 +130,7 @@ void skybox_draw()
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
 			   (float *) projection_collapse());
-	glUniform3f(2, view->eye[0], view->eye[1], view->eye[2]);
+	glUniform3f(2, view.eye[0], view.eye[1], view.eye[2]);
 	glUniform1i(3, 0);
 	glUniform1i(4, 1);
 
