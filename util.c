@@ -42,7 +42,7 @@ void create_GLbuffer(struct GLbuffer *b, GLsizei s, GLuint n)
 	glGenBuffers(1, &(b->id));
 }
 
-void bindonce_GLbuffer(struct GLbuffer *b, GLenum type, void *v)
+void bindonce_GLbuffer(struct GLbuffer *b, GLenum type, const void *v)
 {
 	glBindBuffer(type, b->id);
 	glBufferData(type, b->size, v, GL_STATIC_DRAW);

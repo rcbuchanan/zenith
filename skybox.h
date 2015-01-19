@@ -1,1 +1,1 @@
-void skybox_draw(void);
+void skybox_draw(vec3 eye);

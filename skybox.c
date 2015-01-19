@@ -14,6 +14,7 @@
 #include "util.h"
 
 #include "filewatcher.h"
+#include "geom.h"
 #include "matstack.h"
 #include "view.h"
 
@@ -29,15 +30,6 @@ static struct watched_program pwatch;
 
 
 static char *cube_files[6] = {
-	"skypics/posx.tga",
-	"skypics/negx.tga",
-	"skypics/negy.tga",
-	"skypics/posy.tga",
-	"skypics/posz.tga",
-	"skypics/negz.tga"
-};
-
-static char *cube2_files[6] = {
 	"powerpics/posx.tga",
 	"powerpics/negx.tga",
 	"powerpics/negy.tga",
@@ -46,31 +38,13 @@ static char *cube2_files[6] = {
 	"powerpics/negz.tga"
 };
 
-static GLfloat cube_vtx[8 * 3] = {
-	1.000000 , -1.000000, -1.000000,
-	1.000000 , -1.000000,  1.000000,
-	-1.000000, -1.000000,  1.000000,
-	-1.000000, -1.000000, -1.000000,
-	1.000000 ,  1.000000, -1.000000,
-	1.000000 ,  1.000000,  1.000000,
-	-1.000000,  1.000000,  1.000000,
-	-1.000000,  1.000000, -1.000000
-};
-
-static GLuint cube_faces[12 * 3] = {
-	0, 1, 2,
-	4, 7, 6,
-	0, 4, 5,
-	1, 5, 6,
-	2, 6, 7,
-	4, 0, 3,
-
-	0, 2, 3,
-	4, 6, 5,
-	0, 5, 1,
-	1, 6, 2,
-	2, 7, 3,
-	4, 3, 7,
+static char *cube2_files[6] = {
+	"skypics/posx.tga",
+	"skypics/negx.tga",
+	"skypics/negy.tga",
+	"skypics/posy.tga",
+	"skypics/posz.tga",
+	"skypics/negz.tga"
 };
 
 
@@ -88,23 +62,22 @@ static void skybox_init()
 	bindonce_GLbuffer(&fdata, GL_ELEMENT_ARRAY_BUFFER, cube_faces);
 
 	glActiveTexture(GL_TEXTURE0);
-	create_GLtexture(&tdata, 2048, 2048);
+	create_GLtexture(&tdata, 1024, 1024);
 	loadtgacube_GLtexture(&tdata, cube_files);
 
 	glActiveTexture(GL_TEXTURE1);
-	create_GLtexture(&tdata2, 1024, 1024);
+	create_GLtexture(&tdata2, 2048, 2048);
 	loadtgacube_GLtexture(&tdata2, cube2_files);
 
 	create_watched_program(&pwatch, &vprog);
-
-	init_done = 1;
 }
 
-extern struct view view;
-void skybox_draw()
+void skybox_draw(vec3 eye)
 {
-	if (!init_done)
+	if (!init_done) {
 		skybox_init();
+		init_done = 1;
+	}
 
 	update_program(&pwatch);
 
@@ -130,7 +103,7 @@ void skybox_draw()
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
 			   (float *) projection_collapse());
-	glUniform3f(2, view.eye[0], view.eye[1], view.eye[2]);
+	glUniform3f(2, eye[0], eye[1], eye[2]);
 	glUniform1i(3, 0);
 	glUniform1i(4, 1);
 

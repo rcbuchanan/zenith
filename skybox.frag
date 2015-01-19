@@ -13,8 +13,8 @@ uniform samplerCube s2;
 void main()
 {
 	vec3 n = normalize(fpos);
-	//float ctheta = dot(vec3(0, 0, 1), n); or, if you're not crappy at math...
-	float ctheta = n.z;
+	//float ctheta = dot(vec3(0, 0, 1), n); // or, if you're not crappy at math...
+	float ctheta = -n.z;
 	float phi = atan(n.y, n.x);
 	float r = 4;
 
@@ -27,7 +27,8 @@ void main()
 	float theta = atan(st, ct) * 10;
 	vec3 vp = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 	//vp = n;
-	
+
+	theta *= 0;
 	gl_FragColor = theta < 3.14159 ? texture(s1, vp) : vec4(0, 0, 0, 1.0);
 	gl_FragColor = theta < 3.14159 * 2 ? texture(s2, vp) : vec4(0, 0, 0, 1.0);
 	

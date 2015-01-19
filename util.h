@@ -66,7 +66,7 @@ void create_GLvarray(struct GLvarray *, GLsizei, GLuint);
 void free_GLvarray(struct GLvarray *);
 
 void create_GLbuffer(struct GLbuffer *, GLsizei, GLuint);
-void bindonce_GLbuffer(struct GLbuffer *, GLenum, void *);
+void bindonce_GLbuffer(struct GLbuffer *, GLenum, const void *);
 void free_GLbuffer(struct GLbuffer *);
 
 void create_GLframebuffer(struct GLframebuffer *, GLuint, GLuint, GLuint);

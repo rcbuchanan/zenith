@@ -25,8 +25,11 @@ add_executable(zenith
 	axis.c
 	bspline.c
 	filewatcher.c
+	geom.c
 	landscape.c
 	matstack.c
+	orb.c
+	polyhedron.c
 	skybox.c
 	tga.c
 	util.c
