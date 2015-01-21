@@ -120,9 +120,9 @@ void landscape_draw(float t)
 			      (void *) (sizeof(GLfloat) * 3));
 	glEnableVertexAttribArray(1);
 
-	//glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	//glFrontFace(GL_CCW);
-	//glCullFace(GL_FRONT);
+	glCullFace(GL_FRONT);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
@@ -132,8 +132,9 @@ void landscape_draw(float t)
 			   (float *) modelview_collapse());
 	glUniformMatrix4fv(1, 1, GL_FALSE,
 			   (float *) projection_collapse());
-	glUniform1f(2, t += 0.001);
+	glUniform1f(2, t);
 	glUniform1f(3, 0);
+	glUniform1f(4, 1);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(1);
@@ -148,6 +149,7 @@ void landscape_draw(float t)
 			   (float *) projection_collapse());
 	glUniform1f(2, t);
 	glUniform1f(3, 0);
+	glUniform1f(4, 1);
 
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

@@ -6,7 +6,10 @@ in vec3 fnorm;
 
 uniform	mat4 mvmat;
 uniform	mat4 promat;
+uniform float t;
 uniform samplerCube s1;
+uniform samplerCube s2;
+
 
 void main()
 {
@@ -17,7 +20,7 @@ void main()
 	col = clamp(col + 0.08, 0, 1);
 
 	col = log(floor(exp(col) * 10)) - log(10);
-	col = texture(s1, fnorm).xyz;
+	//col = texture(s2, fnorm).xyz;
 
 	gl_FragColor = vec4(col, 1);
 }

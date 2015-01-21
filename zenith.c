@@ -22,8 +22,7 @@
 #define IS_PRESSED(n) (sb_buttons & (1 << (n)))
 
 
-
-static void render_scene(GLfloat, GLuint);
+static void render_scene(GLfloat, struct view *, GLuint);
 static void display();
 static void reshape(int, int);
 static void spaceball_motion(int, int, int);
@@ -41,12 +40,12 @@ static GLenum cube_axes[] = {
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
 };
 static vec3 cube_vec3[] = {
-	{ 1,  0,  0},
-	{-1,  0,  0},
-	{ 0,  1,  0},
-	{ 0, -1,  0},
-	{ 0,  0,  1,},
-	{ 0,  0, -1},
+	{ 0,  0,  0},
+	{ 0,  0,  0},
+	{ 0,  0,  0},
+	{ 0,  0,  0},
+	{ 0,  0,  0},
+	{ 0,  0,  0},
 };
 
 GLuint winW = 512;
@@ -58,17 +57,18 @@ struct view view;
 struct GLtexture envmap;
 struct GLframebuffer envfb[6];
 
-static void render_scene(GLfloat t, GLuint reflect)
+static void render_scene(GLfloat t, struct view *render_view, GLuint reflect)
 {
 	glClearColor(0.f, 0.f, 0.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	modelview_lookat(view.eye, view.obj, view.up);
-	modelview_pushident();
-	modelview_rotate(0, 1, 0, t);
+	modelview_lookat(render_view->eye, render_view->obj, render_view->up);
 	skybox_draw(view.eye);
 	axis_draw();
-	orb_draw(t);
+	if (reflect)
+		orb_draw(t);
+	modelview_pushident();
+	modelview_rotate(0, 1, 0, t);
 	modelview_translate(2.5, 0, 0);
 	landscape_draw(t);
 	modelview_pop();
@@ -78,20 +78,25 @@ static void display()
 {
 	static GLfloat t;
 	int i;
+	struct view orb_view;
+	static const vec3 eye = {0, 0, 0};
+	static const vec3 obj = {0, 0, -1};
+	static const vec3 up = {0, 1, 0};
 
 	t += 0.008;
 
 	//printf("view: %f %f %f\n", view.eye[0], view.eye[1], view.eye[2]);
 
+	view_create(&orb_view, eye, obj, up);
 	for (i = 0; i < 6; i++) {
-		view_rotate(&view,
+		view_rotate(&orb_view,
 			    cube_vec3[i][0],
 			    cube_vec3[i][1],
 			    cube_vec3[i][2],
 			    M_PI / 2.f);
 		rendertocube_GLframebuffer(envfb + i, &envmap, cube_axes[i]);
-		render_scene(t, GL_FALSE);
-		view_rotate(&view,
+		render_scene(t, &orb_view, GL_FALSE);
+		view_rotate(&orb_view,
 			    cube_vec3[i][0],
 			    cube_vec3[i][1],
 			    cube_vec3[i][2],
@@ -102,7 +107,7 @@ static void display()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, envmap.id);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, winW, winH);
-	render_scene(t, GL_TRUE);
+	render_scene(t, &view, GL_TRUE);
 
 	glutSwapBuffers();
 }
