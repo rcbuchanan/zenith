@@ -65,11 +65,11 @@ static void render_scene(GLfloat t, struct view *render_view, GLuint reflect)
 	modelview_lookat(render_view->eye, render_view->obj, render_view->up);
 	skybox_draw(view.eye);
 	axis_draw();
-	if (reflect)
-		orb_draw(t);
+	//if (reflect)
+	//	orb_draw(t);
 	modelview_pushident();
-	modelview_rotate(0, 1, 0, t);
-	modelview_translate(2.5, 0, 0);
+	//modelview_rotate(0, 1, 0, t);
+	//modelview_translate(2.5, 0, 0);
 	landscape_draw(t);
 	modelview_pop();
 }
@@ -207,7 +207,6 @@ static void reset_view()
 int main(int argc, char **argv)
 {
 	int i;
-
 	glut_setup(argc, argv);
 
 	projection_pushident();
@@ -229,6 +228,7 @@ int main(int argc, char **argv)
 	glutDisplayFunc(display);
 	glutIdleFunc(display);
 	glutReshapeFunc(reshape);
+	//glutHideWindow();
 	glutMainLoop();
 
 	return 0;

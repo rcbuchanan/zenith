@@ -60,7 +60,7 @@ static void init_surface(void)
 	GLuint(*up)[3];
 
 	polyhedron_subdivide(&p, &ico_polyhedron);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 1; i++) {
 		polyhedron_subdivide(&pp, &p);
 		polyhedron_free(&p);
 		p = pp;
