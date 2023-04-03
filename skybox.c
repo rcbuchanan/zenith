@@ -30,21 +30,35 @@ static struct watched_program pwatch;
 
 
 static char *cube_files[6] = {
-	"powerpics/posx.tga",
-	"powerpics/negx.tga",
-	"powerpics/negy.tga",
-	"powerpics/posy.tga",
-	"powerpics/posz.tga",
-	"powerpics/negz.tga"
+	"mp_ae/ae_ft.tga",
+	"mp_ae/ae_bk.tga",
+	"mp_ae/ae_rt.tga",
+	"mp_ae/ae_lf.tga",
+	"mp_ae/ae_up.tga",
+	"mp_ae/ae_dn.tga",
+	//"powerpics/posx.tga",
+	//"powerpics/negx.tga",
+	//"powerpics/negy.tga",
+	//"powerpics/posy.tga",
+	//"powerpics/posz.tga",
+	//"powerpics/negz.tga"
 };
 
 static char *cube2_files[6] = {
-	"skypics/posx.tga",
-	"skypics/negx.tga",
-	"skypics/negy.tga",
-	"skypics/posy.tga",
-	"skypics/posz.tga",
-	"skypics/negz.tga"
+	"mp_blackgold/blackgold_bk.tga",
+	"mp_blackgold/blackgold_ft.tga",
+	"mp_blackgold/blackgold_rt.tga",
+	"mp_blackgold/blackgold_lf.tga",
+	"mp_blackgold/blackgold_dn.tga",
+	"mp_blackgold/blackgold_up.tga",
+
+
+	//"skypics/posx.tga",
+	//"skypics/negx.tga",
+	//"skypics/negy.tga",
+	//"skypics/posy.tga",
+	//"skypics/posz.tga",
+	//"skypics/negz.tga"
 };
 
 
@@ -62,11 +76,13 @@ static void skybox_init()
 	bindonce_GLbuffer(&fdata, GL_ELEMENT_ARRAY_BUFFER, cube_faces);
 
 	glActiveTexture(GL_TEXTURE0);
-	create_GLtexture(&tdata, 1024, 1024);
+	//create_GLtexture(&tdata, 1024, 1024);
+	create_GLtexture(&tdata, 512, 512);
 	loadtgacube_GLtexture(&tdata, cube_files);
 
 	glActiveTexture(GL_TEXTURE1);
-	create_GLtexture(&tdata2, 2048, 2048);
+	//create_GLtexture(&tdata2, 2048, 2048);
+	create_GLtexture(&tdata2, 512, 512);
 	loadtgacube_GLtexture(&tdata2, cube2_files);
 
 	create_watched_program(&pwatch, &vprog);

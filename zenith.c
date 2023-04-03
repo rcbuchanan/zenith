@@ -119,7 +119,7 @@ static void reshape(int w, int h)
 
 	winW = w;
 	winH = h;
-	projection_set_perspective(90, w * 1.f / h, 0.01, 100);
+	projection_set_perspective(120, w * 1.f / h, 0.01, 100);
 }
 
 static void spaceball_motion(int x, int y, int z)
